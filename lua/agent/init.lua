@@ -346,6 +346,8 @@ function M.create_dual_window_interface()
       local chat_buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_option(chat_buf, 'filetype', 'markdown')
       vim.api.nvim_buf_set_option(chat_buf, 'wrap', true)
+      vim.api.nvim_buf_set_option(chat_buf, 'conceallevel', 2)  -- Enable concealment for markdown
+      vim.api.nvim_buf_set_option(chat_buf, 'concealcursor', 'nv')  -- Conceal in normal and visual mode
       
       -- Set chat history content
       vim.api.nvim_buf_set_lines(chat_buf, 0, -1, false, state.chat_history)
@@ -364,6 +366,14 @@ function M.create_dual_window_interface()
       }
       
       local chat_win = vim.api.nvim_open_win(chat_buf, false, chat_config)
+      
+      -- Enable syntax highlighting in the window
+      vim.api.nvim_win_call(chat_win, function()
+        vim.cmd('syntax enable')
+        if vim.fn.exists('syntax_on') == 0 then
+          vim.cmd('syntax on')
+        end
+      end)
       
       state.windows.chat = {
         buf = chat_buf,
