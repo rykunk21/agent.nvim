@@ -31,8 +31,12 @@ local config = default_config
 
 -- Get the plugin directory
 local function get_plugin_dir()
-  local str = debug.getinfo(2, "S").source:sub(2)
-  return str:match("(.*/)")
+  -- Get the directory of this script file
+  local str = debug.getinfo(1, "S").source:sub(2)
+  -- Get the directory containing this file
+  local script_dir = vim.fn.fnamemodify(str, ':h')
+  -- Navigate from lua/nvim-spec-agent/ back to plugin root (two levels up)
+  return vim.fn.fnamemodify(script_dir, ':h:h')
 end
 
 -- Find the Rust binary
@@ -41,8 +45,8 @@ local function find_rust_binary()
     return config.rust_binary_path
   end
   
-  -- Get the plugin root directory (two levels up from lua/nvim-spec-agent/)
-  local plugin_dir = vim.fn.fnamemodify(get_plugin_dir(), ':h:h')
+  -- Get the plugin root directory
+  local plugin_dir = get_plugin_dir()
   
   -- Try different possible locations
   local possible_paths = {
@@ -72,12 +76,27 @@ function M.setup(user_config)
   config.rust_binary_path = find_rust_binary()
   
   if not config.rust_binary_path then
-    local plugin_dir = vim.fn.fnamemodify(get_plugin_dir(), ':h:h')
+    local plugin_dir = get_plugin_dir()
     vim.notify('nvim-spec-agent: Rust binary not found!', vim.log.levels.ERROR)
-    vim.notify('Please run the build script:', vim.log.levels.INFO)
-    vim.notify('  Linux/Mac: cd ' .. plugin_dir .. ' && ./build.sh', vim.log.levels.INFO)
-    vim.notify('  Windows: cd ' .. plugin_dir .. ' && build.bat', vim.log.levels.INFO)
-    vim.notify('Or install Rust and run: cargo build --release', vim.log.levels.INFO)
+    vim.notify('Plugin directory: ' .. plugin_dir, vim.log.levels.INFO)
+    
+    -- Check if build script exists
+    local build_script = plugin_dir .. '/build.sh'
+    if vim.fn.filereadable(build_script) == 1 then
+      vim.notify('Build script found. Try running manually:', vim.log.levels.INFO)
+      vim.notify('  cd ' .. plugin_dir .. ' && ./build.sh', vim.log.levels.INFO)
+    else
+      vim.notify('Build script not found at: ' .. build_script, vim.log.levels.WARN)
+    end
+    
+    -- Check if Rust is available
+    if vim.fn.executable('cargo') == 1 then
+      vim.notify('Cargo found. You can build manually:', vim.log.levels.INFO)
+      vim.notify('  cd ' .. plugin_dir .. ' && cargo build --release', vim.log.levels.INFO)
+    else
+      vim.notify('Cargo not found. Install Rust from: https://rustup.rs/', vim.log.levels.WARN)
+    end
+    
     return
   end
   
