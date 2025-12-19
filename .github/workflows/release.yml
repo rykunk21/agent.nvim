@@ -111,59 +111,8 @@ jobs:
           rm -rf .github/workflows/release.yml scripts/
           rm -rf .kiro/ build-config.lua
           
-          # Update README for end users (remove development sections)
-          cat > README.md << 'READMEEOF'
-# agent.nvim
-
-Enhanced Neovim plugin with spec-driven development capabilities.
-
-## Installation
-
-### Using lazy.nvim
-
-```lua
-return {
-  "rykunk21/agent.nvim",
-  config = function()
-    require('agent').setup({
-      keybindings = {
-        open_agent = '<leader>sa',  -- Open spec agent
-        new_spec = '<leader>sn',    -- Create new spec
-        open_spec = '<leader>so',   -- Open existing spec
-      },
-      ui = {
-        border_style = 'rounded',
-        window_width_ratio = 0.8,
-        window_height_ratio = 0.6,
-      },
-    })
-  end,
-  cmd = { 'SpecAgent', 'SpecNew', 'SpecOpen' },
-  keys = {
-    { '<leader>sa', desc = 'Open Spec Agent' },
-    { '<leader>sn', desc = 'New Spec' },
-    { '<leader>so', desc = 'Open Spec' },
-  },
-}
-```
-
-## Usage
-
-- `<leader>sa` - Open the spec agent interface
-- `<leader>sn` - Create a new spec
-- `<leader>so` - Open an existing spec
-
-## Troubleshooting
-
-If you encounter issues:
-1. Check `:checkhealth agent`
-2. Ensure you're using Neovim 0.5.0+
-3. Check `:messages` for error details
-
-## License
-
-MIT License
-READMEEOF
+          # Keep the existing README - it already has the correct instructions
+          # (No changes needed to README.md)
           
           # Keep only essential plugin files
           git add bin/ lua/ plugin/ autoload/ README.md
