@@ -8,6 +8,7 @@ local state = {
   windows = {},
   current_spec = nil,
   chat_history = {},
+  dual_window_open = false, -- Track window state
 }
 
 -- Configuration
@@ -96,6 +97,23 @@ function M.setup(user_config)
       vim.notify('Cargo not found. Install Rust from: https://rustup.rs/', vim.log.levels.WARN)
     end
   end
+  
+  -- Register commands (no keybindings - let user handle that)
+  vim.api.nvim_create_user_command('AgentToggle', function()
+    M.toggle_dual_window()
+  end, { desc = 'Toggle Agent Interface' })
+  
+  vim.api.nvim_create_user_command('AgentOpen', function()
+    M.open_agent()
+  end, { desc = 'Open Agent Interface' })
+  
+  vim.api.nvim_create_user_command('AgentClose', function()
+    M.close_dual_window()
+  end, { desc = 'Close Agent Interface' })
+  
+  vim.api.nvim_create_user_command('AgentStatus', function()
+    M.show_status()
+  end, { desc = 'Show Agent Status' })
   
   -- Only set up keybindings if explicitly configured (for backward compatibility)
   -- Most users should use lazy.nvim keys instead
@@ -233,35 +251,25 @@ function M.handle_rust_message(message)
   end
 end
 
--- Toggle agent interface (open/close)
-function M.toggle_agent()
-  -- Check if interface is already open (check both input and chat windows)
-  local is_open = false
-  
-  if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
-    is_open = true
-  elseif state.windows.chat and vim.api.nvim_win_is_valid(state.windows.chat.win) then
-    is_open = true
+-- Public toggle function (main interface)
+function M.toggle_dual_window()
+  state.dual_window_open = not state.dual_window_open
+  if state.dual_window_open then
+    M.draw_dual_window()
+  else
+    M.close_dual_window()
   end
-  
-  if is_open then
-    -- If open, close the interface
-    M.close_agent_interface()
-    return
-  end
-  
-  -- If not open, open it
-  M.open_agent()
 end
 
--- Open agent interface (always opens, doesn't toggle)
-function M.open_agent()
+-- Internal function to draw the dual window
+function M.draw_dual_window()
   -- Re-check for binary if not found during setup
   if not config.rust_binary_path then
     config.rust_binary_path = find_rust_binary()
     if not config.rust_binary_path then
       vim.notify('agent.nvim: Rust binary still not found', vim.log.levels.ERROR)
       vim.notify('Try building with: cargo build', vim.log.levels.INFO)
+      state.dual_window_open = false -- Reset state on failure
       return
     end
   end
@@ -271,6 +279,7 @@ function M.open_agent()
     vim.notify('Starting agent backend...', vim.log.levels.INFO)
     if not M.start_rust_backend() then
       vim.notify('Failed to start agent backend', vim.log.levels.ERROR)
+      state.dual_window_open = false -- Reset state on failure
       return
     end
     
@@ -286,6 +295,54 @@ function M.open_agent()
   -- Also notify Rust backend
   if state.initialized then
     M.send_to_rust({ type = 'open_agent' })
+  end
+end
+
+-- Internal function to close the dual window
+function M.close_dual_window()
+  local closed_windows = 0
+  
+  -- Close chat window
+  if state.windows.chat then
+    if vim.api.nvim_win_is_valid(state.windows.chat.win) then
+      pcall(vim.api.nvim_win_close, state.windows.chat.win, true)
+      closed_windows = closed_windows + 1
+    end
+    state.windows.chat = nil
+  end
+  
+  -- Close input window
+  if state.windows.input then
+    if vim.api.nvim_win_is_valid(state.windows.input.win) then
+      pcall(vim.api.nvim_win_close, state.windows.input.win, true)
+      closed_windows = closed_windows + 1
+    end
+    state.windows.input = nil
+  end
+  
+  -- Clear the entire windows table to ensure clean state
+  state.windows = {}
+  state.dual_window_open = false -- Ensure state is consistent
+  
+  if closed_windows > 0 then
+    vim.notify('Agent interface closed', vim.log.levels.INFO)
+  end
+  
+  -- Also notify Rust backend
+  if state.initialized then
+    M.send_to_rust({ type = 'close_agent' })
+  end
+end
+
+-- Legacy function aliases for backward compatibility
+M.toggle_agent = M.toggle_dual_window
+M.close_agent_interface = M.close_dual_window
+
+-- Open agent interface (always opens, doesn't toggle)
+function M.open_agent()
+  if not state.dual_window_open then
+    state.dual_window_open = true
+    M.draw_dual_window()
   end
 end
 
@@ -503,41 +560,6 @@ function M.create_dual_window_interface()
         vim.cmd('startinsert')
       end
     end)
-  end
-end
-
--- Close agent interface
-function M.close_agent_interface()
-  local closed_windows = 0
-  
-  -- Close chat window
-  if state.windows.chat then
-    if vim.api.nvim_win_is_valid(state.windows.chat.win) then
-      pcall(vim.api.nvim_win_close, state.windows.chat.win, true)
-      closed_windows = closed_windows + 1
-    end
-    state.windows.chat = nil
-  end
-  
-  -- Close input window
-  if state.windows.input then
-    if vim.api.nvim_win_is_valid(state.windows.input.win) then
-      pcall(vim.api.nvim_win_close, state.windows.input.win, true)
-      closed_windows = closed_windows + 1
-    end
-    state.windows.input = nil
-  end
-  
-  -- Clear the entire windows table to ensure clean state
-  state.windows = {}
-  
-  if closed_windows > 0 then
-    vim.notify('Agent interface closed', vim.log.levels.INFO)
-  end
-  
-  -- Also notify Rust backend
-  if state.initialized then
-    M.send_to_rust({ type = 'close_agent' })
   end
 end
 
