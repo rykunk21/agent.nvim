@@ -113,18 +113,32 @@ function M.setup(user_config)
     return
   end
   
-  -- Set up keybindings
-  if config.keybindings.open_agent then
-    vim.keymap.set('n', config.keybindings.open_agent, M.open_agent, { desc = 'Open Spec Agent' })
-  end
-  
-  if config.keybindings.new_spec then
-    vim.keymap.set('n', config.keybindings.new_spec, M.new_spec, { desc = 'New Spec' })
-  end
-  
-  if config.keybindings.open_spec then
-    vim.keymap.set('n', config.keybindings.open_spec, M.open_spec, { desc = 'Open Spec' })
-  end
+  -- Set up keybindings with better conflict resolution
+  vim.schedule(function()
+    if config.keybindings.open_agent then
+      vim.keymap.set('n', config.keybindings.open_agent, M.open_agent, { 
+        desc = 'Open Spec Agent',
+        noremap = true,
+        silent = true
+      })
+    end
+    
+    if config.keybindings.new_spec then
+      vim.keymap.set('n', config.keybindings.new_spec, M.new_spec, { 
+        desc = 'New Spec',
+        noremap = true,
+        silent = true
+      })
+    end
+    
+    if config.keybindings.open_spec then
+      vim.keymap.set('n', config.keybindings.open_spec, M.open_spec, { 
+        desc = 'Open Spec',
+        noremap = true,
+        silent = true
+      })
+    end
+  end)
   
   -- Auto-start if configured
   if config.auto_start then
@@ -242,17 +256,27 @@ function M.open_agent()
     return
   end
   
+  -- Ensure backend is running
   if not state.initialized then
+    vim.notify('Starting agent backend...', vim.log.levels.INFO)
     if not M.start_rust_backend() then
+      vim.notify('Failed to start agent backend', vim.log.levels.ERROR)
       return
     end
+    
+    -- Wait a moment for backend to initialize
+    vim.defer_fn(function()
+      M.create_dual_window_interface()
+    end, 200)
+  else
+    -- Create the dual window interface directly
+    M.create_dual_window_interface()
   end
   
-  -- Create the dual window interface directly
-  M.create_dual_window_interface()
-  
   -- Also notify Rust backend
-  M.send_to_rust({ type = 'open_agent' })
+  if state.initialized then
+    M.send_to_rust({ type = 'open_agent' })
+  end
 end
 
 -- Create new spec
@@ -318,21 +342,42 @@ end
 -- Send message to Rust backend
 function M.send_to_rust(message)
   if not state.rust_job_id then
-    vim.notify('Rust backend not running', vim.log.levels.ERROR)
-    return
+    vim.notify('Rust backend not running', vim.log.levels.WARN)
+    return false
   end
   
-  local json_message = vim.json.encode(message)
-  vim.fn.chansend(state.rust_job_id, json_message .. '\n')
+  local ok, json_message = pcall(vim.json.encode, message)
+  if not ok then
+    vim.notify('Failed to encode message: ' .. tostring(json_message), vim.log.levels.ERROR)
+    return false
+  end
+  
+  local success = pcall(vim.fn.chansend, state.rust_job_id, json_message .. '\n')
+  if not success then
+    vim.notify('Failed to send message to backend', vim.log.levels.ERROR)
+    return false
+  end
+  
+  return true
 end
 
 -- Create dual window interface (chat history + input)
 function M.create_dual_window_interface()
+  -- Ensure we have valid dimensions
+  if vim.o.columns < 20 or vim.o.lines < 10 then
+    vim.notify('Terminal too small for agent interface', vim.log.levels.WARN)
+    return
+  end
+  
   -- Calculate dimensions
   local width = math.floor(vim.o.columns * (config.ui.window_width_ratio or 0.8))
   local total_height = math.floor(vim.o.lines * (config.ui.window_height_ratio or 0.6))
   local input_height = 3
   local chat_height = total_height - input_height - 1 -- -1 for spacing
+  
+  -- Ensure minimum dimensions
+  width = math.max(width, 40)
+  chat_height = math.max(chat_height, 5)
   
   -- Calculate positions (centered)
   local col = math.floor((vim.o.columns - width) / 2)
@@ -344,10 +389,12 @@ function M.create_dual_window_interface()
     -- Create chat buffer if it doesn't exist
     if not state.windows.chat or not vim.api.nvim_buf_is_valid(state.windows.chat.buf) then
       local chat_buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_buf_set_option(chat_buf, 'filetype', 'markdown')
-      vim.api.nvim_buf_set_option(chat_buf, 'wrap', true)
-      vim.api.nvim_buf_set_option(chat_buf, 'conceallevel', 2)  -- Enable concealment for markdown
-      vim.api.nvim_buf_set_option(chat_buf, 'concealcursor', 'nv')  -- Conceal in normal and visual mode
+      
+      -- Set buffer options safely
+      pcall(vim.api.nvim_buf_set_option, chat_buf, 'filetype', 'markdown')
+      pcall(vim.api.nvim_buf_set_option, chat_buf, 'wrap', true)
+      pcall(vim.api.nvim_buf_set_option, chat_buf, 'conceallevel', 2)
+      pcall(vim.api.nvim_buf_set_option, chat_buf, 'concealcursor', 'nv')
       
       -- Set chat history content
       vim.api.nvim_buf_set_lines(chat_buf, 0, -1, false, state.chat_history)
@@ -365,10 +412,14 @@ function M.create_dual_window_interface()
         zindex = 40,
       }
       
-      local chat_win = vim.api.nvim_open_win(chat_buf, false, chat_config)
+      local ok, chat_win = pcall(vim.api.nvim_open_win, chat_buf, false, chat_config)
+      if not ok then
+        vim.notify('Failed to create chat window: ' .. tostring(chat_win), vim.log.levels.ERROR)
+        return
+      end
       
       -- Enable syntax highlighting in the window
-      vim.api.nvim_win_call(chat_win, function()
+      pcall(vim.api.nvim_win_call, chat_win, function()
         vim.cmd('syntax enable')
         if vim.fn.exists('syntax_on') == 0 then
           vim.cmd('syntax on')
@@ -391,7 +442,7 @@ function M.create_dual_window_interface()
   -- Create input window
   if not state.windows.input or not vim.api.nvim_buf_is_valid(state.windows.input.buf) then
     local input_buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_option(input_buf, 'filetype', 'markdown')
+    pcall(vim.api.nvim_buf_set_option, input_buf, 'filetype', 'markdown')
     
     local input_config = {
       relative = 'editor',
@@ -406,7 +457,11 @@ function M.create_dual_window_interface()
       zindex = 50, -- Higher z-index for input window
     }
     
-    local input_win = vim.api.nvim_open_win(input_buf, true, input_config)
+    local ok, input_win = pcall(vim.api.nvim_open_win, input_buf, true, input_config)
+    if not ok then
+      vim.notify('Failed to create input window: ' .. tostring(input_win), vim.log.levels.ERROR)
+      return
+    end
     
     state.windows.input = {
       buf = input_buf,
@@ -427,8 +482,17 @@ function M.create_dual_window_interface()
       M.close_agent_interface()
     end, { buffer = input_buf, noremap = true, silent = true })
     
+    vim.keymap.set('i', '<Esc>', function()
+      M.close_agent_interface()
+    end, { buffer = input_buf, noremap = true, silent = true })
+    
     -- Start in insert mode for immediate typing
-    vim.cmd('startinsert')
+    vim.schedule(function()
+      if vim.api.nvim_win_is_valid(input_win) then
+        vim.api.nvim_set_current_win(input_win)
+        vim.cmd('startinsert')
+      end
+    end)
   end
 end
 
@@ -624,6 +688,13 @@ function M.debug_paths()
   
   vim.notify('Build script: ' .. plugin_dir .. '/build.sh - ' .. 
     (vim.fn.filereadable(plugin_dir .. '/build.sh') == 1 and 'EXISTS' or 'NOT FOUND'), vim.log.levels.INFO)
+end
+
+-- Initialize plugin with default configuration
+function M.init()
+  if not config then
+    M.setup({})
+  end
 end
 
 return M

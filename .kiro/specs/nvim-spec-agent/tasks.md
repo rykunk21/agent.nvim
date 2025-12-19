@@ -205,34 +205,43 @@
   - Implement plugin manager compatibility (lazy.nvim, packer, vim-plug)
   - _Requirements: 1.1, 1.4_
 
-- [ ] 14. Add comprehensive error handling and logging
+- [-] 14. Fix and stabilize basic dual-window system
+
+  - Debug and fix current window creation issues preventing <leader>af from working
+  - Ensure reliable window spawning and focus management
+  - Fix any Lua/Rust communication errors blocking basic functionality
+  - Verify keybinding registration and conflict resolution
+  - Test window cleanup and proper state management
+  - _Requirements: 2.1, 2.2, 2.5_
+
+- [ ] 15. Add comprehensive error handling and logging
   - Implement structured logging with configurable levels
   - Create user-friendly error messages and recovery suggestions
   - Add diagnostic information collection for troubleshooting
   - Implement error reporting and feedback mechanisms
   - _Requirements: 5.5, 7.5_
 
-- [ ] 15. Checkpoint - Ensure all tests pass
+- [ ] 16. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 16. Create installation and setup documentation
+- [ ] 17. Create installation and setup documentation
   - Write installation instructions for different plugin managers
   - Create configuration examples and customization guide
   - Add troubleshooting section for common issues
   - Document GNU Stow integration and dotfiles workflow
   - _Requirements: 1.1, 6.2_
 
-- [ ]* 16.1 Write unit tests for GNU Stow compatibility
+- [ ]* 17.1 Write unit tests for GNU Stow compatibility
   - Test plugin functionality in stowed directory structures
   - Verify configuration persistence across stow operations
   - _Requirements: 6.2_
 
-- [ ] 17. Final integration and polish
+- [ ] 18. Final integration and polish
   - Integrate all components into cohesive plugin experience
   - Add performance optimizations and memory management
   - Implement final UI polish and user experience improvements
   - Create comprehensive integration tests
   - _Requirements: 8.1, 8.3, 8.5_
 
-- [ ] 18. Final Checkpoint - Ensure all tests pass
+- [ ] 19. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

@@ -36,6 +36,11 @@ let s:default_config = {
 " Merge user config with defaults
 let g:agent_nvim_config = extend(s:default_config, g:agent_nvim_config, 'force')
 
+" Initialize the plugin
+lua << EOF
+require('agent').setup(vim.g.agent_nvim_config)
+EOF
+
 " Commands
 command! -nargs=0 SpecAgent lua require('agent').open_agent()
 command! -nargs=? SpecNew lua require('agent').new_spec(<q-args>)
@@ -57,23 +62,4 @@ augroup AgentNvim
   " Handle window resize
   autocmd VimResized * lua require('agent').handle_resize()
 augroup END
-
-" Set up keybindings
-function! s:setup_keybindings()
-  let l:bindings = g:agent_nvim_config.keybindings
-  
-  if has_key(l:bindings, 'open_agent') && !empty(l:bindings.open_agent)
-    execute 'nnoremap <silent> ' . l:bindings.open_agent . ' :SpecAgent<CR>'
-  endif
-  
-  if has_key(l:bindings, 'new_spec') && !empty(l:bindings.new_spec)
-    execute 'nnoremap <silent> ' . l:bindings.new_spec . ' :SpecNew<CR>'
-  endif
-  
-  if has_key(l:bindings, 'open_spec') && !empty(l:bindings.open_spec)
-    execute 'nnoremap <silent> ' . l:bindings.open_spec . ' :SpecOpen<CR>'
-  endif
-endfunction
-
-call s:setup_keybindings()
 
