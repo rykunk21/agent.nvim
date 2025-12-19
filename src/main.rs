@@ -1,5 +1,5 @@
 use agent_nvim::NvimSpecAgent;
-use neovim_lib::{Neovim, Session};
+use neovim_lib::Session;
 use std::io::{self, BufRead, BufReader};
 use std::process;
 use serde_json::{Value, json};

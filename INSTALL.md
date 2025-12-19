@@ -52,9 +52,33 @@ cd ~/.local/share/nvim/site/pack/plugins/start/agent.nvim
 
 ## Troubleshooting
 
-- **"Rust binary not found"**: Make sure Rust is installed and run the build script
-- **Build fails**: Try `cargo clean && ./build.sh`
-- **Plugin not loading**: Check `:messages` for errors
+### "Rust binary not found" Error
+
+This means the Rust binary wasn't built during installation. Try:
+
+1. **Check if Rust is installed**: `cargo --version`
+2. **Manually run build script**:
+   - Linux/macOS: `cd ~/.local/share/nvim/lazy/agent.nvim && ./build.sh`
+   - Windows: `cd %LOCALAPPDATA%\nvim-data\lazy\agent.nvim && build.bat`
+3. **Check binary exists**: Look for `bin/nvim-spec-agent` or `bin/nvim-spec-agent.exe`
+
+### "Agent backend not initialized" Error
+
+This happens when the Rust binary exists but fails to start:
+
+1. **Test binary manually**: `./bin/nvim-spec-agent` (should not exit immediately)
+2. **Check Neovim logs**: `:messages` for error details
+3. **Enable debug logging**: Add `log_level = 'debug'` to your config
+
+### Build Fails
+
+1. **Clean and rebuild**: `cargo clean && ./build.sh`
+2. **Check Rust version**: Requires Rust 1.70+
+3. **Missing dependencies**: Install build tools for your platform
+
+### Health Check
+
+Run `:checkhealth agent` to diagnose issues.
 
 ## Development
 

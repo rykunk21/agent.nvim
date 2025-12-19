@@ -77,28 +77,3 @@ endfunction
 
 call s:setup_keybindings()
 
-" Plugin health check
-function! health#agent#check() abort
-  call health#report_start('agent.nvim')
-  
-  " Check Neovim version
-  if has('nvim-0.5.0')
-    call health#report_ok('Neovim version is supported')
-  else
-    call health#report_error('Neovim 0.5.0+ required')
-  endif
-  
-  " Check if Rust binary exists
-  if executable('nvim-spec-agent')
-    call health#report_ok('Rust binary found')
-  else
-    call health#report_warn('Rust binary not found in PATH')
-  endif
-  
-  " Check configuration
-  if exists('g:agent_nvim_config')
-    call health#report_ok('Configuration loaded')
-  else
-    call health#report_error('Configuration not found')
-  endif
-endfunction

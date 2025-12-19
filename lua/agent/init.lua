@@ -55,10 +55,12 @@ local function find_rust_binary()
   
   for _, path in ipairs(possible_paths) do
     if vim.fn.executable(path) == 1 then
+      vim.notify('Found Rust binary at: ' .. path, vim.log.levels.DEBUG)
       return path
     end
   end
   
+  vim.notify('Rust binary not found. Searched paths: ' .. vim.inspect(possible_paths), vim.log.levels.WARN)
   return nil
 end
 
@@ -70,7 +72,12 @@ function M.setup(user_config)
   config.rust_binary_path = find_rust_binary()
   
   if not config.rust_binary_path then
-    vim.notify('agent.nvim: Rust binary not found. Please run the build script.', vim.log.levels.WARN)
+    local plugin_dir = vim.fn.fnamemodify(get_plugin_dir(), ':h:h')
+    vim.notify('agent.nvim: Rust binary not found!', vim.log.levels.ERROR)
+    vim.notify('Please run the build script:', vim.log.levels.INFO)
+    vim.notify('  Linux/Mac: cd ' .. plugin_dir .. ' && ./build.sh', vim.log.levels.INFO)
+    vim.notify('  Windows: cd ' .. plugin_dir .. ' && build.bat', vim.log.levels.INFO)
+    vim.notify('Or install Rust and run: cargo build --release', vim.log.levels.INFO)
     return
   end
   
