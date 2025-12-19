@@ -43,6 +43,7 @@ EOF
 
 " Commands
 command! -nargs=0 SpecAgent lua require('agent').open_agent()
+command! -nargs=0 SpecToggle lua require('agent').toggle_agent()
 command! -nargs=? SpecNew lua require('agent').new_spec(<q-args>)
 command! -nargs=? SpecOpen lua require('agent').open_spec(<q-args>)
 command! -nargs=0 SpecClose lua require('agent').close_agent()

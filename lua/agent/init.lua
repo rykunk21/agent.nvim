@@ -20,12 +20,7 @@ local default_config = {
     window_width_ratio = 0.8,
     window_height_ratio = 0.6,
   },
-  keybindings = {
-    open_agent = '<leader>af',
-    new_spec = '<leader>sn',
-    open_spec = '<leader>so',
-    close_agent = '<Esc>',
-  }
+  -- keybindings removed from default - use lazy.nvim keys instead
 }
 
 local config = default_config
@@ -102,32 +97,35 @@ function M.setup(user_config)
     end
   end
   
-  -- ALWAYS set up keybindings, regardless of binary status
-  vim.schedule(function()
-    if config.keybindings.open_agent then
-      vim.keymap.set('n', config.keybindings.open_agent, M.open_agent, { 
-        desc = 'Open Spec Agent',
-        noremap = true,
-        silent = true
-      })
-    end
-    
-    if config.keybindings.new_spec then
-      vim.keymap.set('n', config.keybindings.new_spec, M.new_spec, { 
-        desc = 'New Spec',
-        noremap = true,
-        silent = true
-      })
-    end
-    
-    if config.keybindings.open_spec then
-      vim.keymap.set('n', config.keybindings.open_spec, M.open_spec, { 
-        desc = 'Open Spec',
-        noremap = true,
-        silent = true
-      })
-    end
-  end)
+  -- Only set up keybindings if explicitly configured (for backward compatibility)
+  -- Most users should use lazy.nvim keys instead
+  if config.keybindings and config.keybindings.open_agent then
+    vim.schedule(function()
+      if config.keybindings.open_agent then
+        vim.keymap.set('n', config.keybindings.open_agent, M.toggle_agent, { 
+          desc = 'Toggle Spec Agent',
+          noremap = true,
+          silent = true
+        })
+      end
+      
+      if config.keybindings.new_spec then
+        vim.keymap.set('n', config.keybindings.new_spec, M.new_spec, { 
+          desc = 'New Spec',
+          noremap = true,
+          silent = true
+        })
+      end
+      
+      if config.keybindings.open_spec then
+        vim.keymap.set('n', config.keybindings.open_spec, M.open_spec, { 
+          desc = 'Open Spec',
+          noremap = true,
+          silent = true
+        })
+      end
+    end)
+  end
   
   -- Auto-start if configured and binary is available
   if config.auto_start and config.rust_binary_path then
@@ -235,16 +233,29 @@ function M.handle_rust_message(message)
   end
 end
 
--- Open agent interface
-function M.open_agent()
-  -- Check if interface is already open
+-- Toggle agent interface (open/close)
+function M.toggle_agent()
+  -- Check if interface is already open (check both input and chat windows)
+  local is_open = false
+  
   if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
-    -- If open, focus the input window
-    vim.api.nvim_set_current_win(state.windows.input.win)
-    vim.cmd('startinsert')
+    is_open = true
+  elseif state.windows.chat and vim.api.nvim_win_is_valid(state.windows.chat.win) then
+    is_open = true
+  end
+  
+  if is_open then
+    -- If open, close the interface
+    M.close_agent_interface()
     return
   end
   
+  -- If not open, open it
+  M.open_agent()
+end
+
+-- Open agent interface (always opens, doesn't toggle)
+function M.open_agent()
   -- Re-check for binary if not found during setup
   if not config.rust_binary_path then
     config.rust_binary_path = find_rust_binary()
@@ -497,16 +508,36 @@ end
 
 -- Close agent interface
 function M.close_agent_interface()
+  local closed_windows = 0
+  
   -- Close chat window
-  if state.windows.chat and vim.api.nvim_win_is_valid(state.windows.chat.win) then
-    vim.api.nvim_win_close(state.windows.chat.win, true)
+  if state.windows.chat then
+    if vim.api.nvim_win_is_valid(state.windows.chat.win) then
+      pcall(vim.api.nvim_win_close, state.windows.chat.win, true)
+      closed_windows = closed_windows + 1
+    end
     state.windows.chat = nil
   end
   
   -- Close input window
-  if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
-    vim.api.nvim_win_close(state.windows.input.win, true)
+  if state.windows.input then
+    if vim.api.nvim_win_is_valid(state.windows.input.win) then
+      pcall(vim.api.nvim_win_close, state.windows.input.win, true)
+      closed_windows = closed_windows + 1
+    end
     state.windows.input = nil
+  end
+  
+  -- Clear the entire windows table to ensure clean state
+  state.windows = {}
+  
+  if closed_windows > 0 then
+    vim.notify('Agent interface closed', vim.log.levels.INFO)
+  end
+  
+  -- Also notify Rust backend
+  if state.initialized then
+    M.send_to_rust({ type = 'close_agent' })
   end
 end
 

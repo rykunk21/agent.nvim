@@ -205,7 +205,10 @@
   - Implement plugin manager compatibility (lazy.nvim, packer, vim-plug)
   - _Requirements: 1.1, 1.4_
 
-- [-] 14. Fix and stabilize basic dual-window system
+- [x] 14. Fix and stabilize basic dual-window system
+
+
+
 
   - Debug and fix current window creation issues preventing <leader>af from working
   - Ensure reliable window spawning and focus management
