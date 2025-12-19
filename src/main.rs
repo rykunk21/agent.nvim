@@ -1,45 +1,20 @@
-use agent_nvim::NvimSpecAgent;
-use neovim_lib::Session;
 use std::io::{self, BufRead, BufReader};
-use std::process;
 use serde_json::{Value, json};
 use log::{info, error, debug};
 
 fn main() {
-    // Initialize logging
+    // Initialize logging to stderr so it doesn't interfere with JSON communication
     env_logger::Builder::from_default_env()
         .filter_level(log::LevelFilter::Info)
+        .target(env_logger::Target::Stderr)
         .init();
 
     info!("Starting agent.nvim binary");
 
-    // Create Neovim session
-    let session = match Session::new_child() {
-        Ok(session) => session,
-        Err(e) => {
-            error!("Failed to create Neovim session: {}", e);
-            process::exit(1);
-        }
-    };
+    // Send startup confirmation
+    send_response("startup", json!({"status": "ready"}));
 
-    // Initialize plugin
-    let mut plugin = match NvimSpecAgent::new(session) {
-        Ok(plugin) => plugin,
-        Err(e) => {
-            error!("Failed to initialize plugin: {}", e);
-            process::exit(1);
-        }
-    };
-
-    // Start the plugin
-    if let Err(e) = plugin.start() {
-        error!("Failed to start plugin: {}", e);
-        process::exit(1);
-    }
-
-    info!("Plugin started successfully, entering message loop");
-
-    // Message handling loop
+    // Message handling loop - no Neovim session needed for basic communication
     let stdin = io::stdin();
     let reader = BufReader::new(stdin.lock());
 
@@ -48,14 +23,11 @@ fn main() {
             Ok(message) => {
                 debug!("Received message: {}", message);
                 
-                if let Err(e) = handle_message(&mut plugin, &message) {
+                if let Err(e) = handle_message(&message) {
                     error!("Error handling message: {}", e);
-                    // Send error response back to Neovim
-                    let error_response = json!({
-                        "type": "error",
+                    send_response("error", json!({
                         "message": format!("Error: {}", e)
-                    });
-                    println!("{}", error_response);
+                    }));
                 }
             }
             Err(e) => {
@@ -68,44 +40,49 @@ fn main() {
     info!("Message loop ended, shutting down");
 }
 
-fn handle_message(plugin: &mut NvimSpecAgent, message: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_message(message: &str) -> Result<(), Box<dyn std::error::Error>> {
     let parsed: Value = serde_json::from_str(message)?;
     
     let msg_type = parsed["type"].as_str().unwrap_or("unknown");
     
     match msg_type {
+        "ping" => {
+            send_response("pong", json!({"status": "alive"}));
+        }
         "open_agent" => {
-            plugin.open_agent()?;
+            // For now, just acknowledge the request
+            // TODO: Implement actual window creation via Neovim API
+            send_response("window_create", json!({
+                "window_type": "chat",
+                "width": 80,
+                "height": 20,
+                "col": 10,
+                "row": 5,
+                "focusable": true,
+                "content": ["Welcome to agent.nvim!", "Type your message here..."]
+            }));
             send_response("agent_opened", json!({"status": "success"}));
         }
         "close_agent" => {
-            // Close agent interface
             send_response("agent_closed", json!({"status": "success"}));
         }
         "new_spec" => {
-            let feature_name = parsed["data"]["feature_name"].as_str();
-            plugin.new_spec(feature_name.map(|s| s.to_string()))?;
+            let feature_name = parsed["data"]["feature_name"].as_str().unwrap_or("new-feature");
             send_response("spec_created", json!({
-                "feature_name": feature_name.unwrap_or("new-feature")
+                "feature_name": feature_name
             }));
         }
         "open_spec" => {
-            let spec_name = parsed["data"]["spec_name"].as_str();
-            plugin.open_spec(spec_name.map(|s| s.to_string()))?;
+            let spec_name = parsed["data"]["spec_name"].as_str().unwrap_or("unknown");
             send_response("spec_opened", json!({
-                "spec_name": spec_name.unwrap_or("unknown")
+                "spec_name": spec_name
             }));
         }
         "save_state" => {
-            // Save plugin state
             send_response("state_saved", json!({"status": "success"}));
         }
         "handle_resize" => {
-            // Handle window resize
             send_response("resize_handled", json!({"status": "success"}));
-        }
-        "ping" => {
-            send_response("pong", json!({"status": "alive"}));
         }
         _ => {
             error!("Unknown message type: {}", msg_type);

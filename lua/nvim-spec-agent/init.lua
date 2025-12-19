@@ -20,7 +20,7 @@ local default_config = {
     window_height_ratio = 0.6,
   },
   keybindings = {
-    open_agent = '<leader>sa',
+    open_agent = '<leader>af',
     new_spec = '<leader>sn',
     open_spec = '<leader>so',
     close_agent = '<Esc>',

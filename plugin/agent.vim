@@ -21,7 +21,7 @@ let g:agent_nvim_config = get(g:, 'agent_nvim_config', {})
 let s:default_config = {
   \ 'auto_start': 0,
   \ 'keybindings': {
-    \ 'open_agent': '<leader>sa',
+    \ 'open_agent': '<leader>af',
     \ 'new_spec': '<leader>sn',
     \ 'open_spec': '<leader>so',
     \ 'close_agent': '<Esc>',

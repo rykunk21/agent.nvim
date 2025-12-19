@@ -31,7 +31,7 @@ return {
   config = function()
     require('agent').setup({
       keybindings = {
-        open_agent = '<leader>sa',  -- Open spec agent
+        open_agent = '<leader>af',  -- Toggle agent window
         new_spec = '<leader>sn',    -- Create new spec
         open_spec = '<leader>so',   -- Open existing spec
       },
@@ -44,7 +44,7 @@ return {
   end,
   cmd = { 'SpecAgent', 'SpecNew', 'SpecOpen' },
   keys = {
-    { '<leader>sa', desc = 'Open Spec Agent' },
+    { '<leader>af', desc = 'Toggle Agent Window' },
     { '<leader>sn', desc = 'New Spec' },
     { '<leader>so', desc = 'Open Spec' },
   },
@@ -82,7 +82,7 @@ require('agent').setup()
 
 ### Default Keybindings
 
-- `<leader>sa` - Open spec agent
+- `<leader>af` - Toggle agent window
 - `<leader>sn` - Create new spec
 - `<leader>so` - Open existing spec
 
@@ -102,7 +102,7 @@ The plugin can be configured through the `setup()` function:
 require('agent').setup({
   -- Keybindings
   keybindings = {
-    open_agent = '<leader>sa',
+    open_agent = '<leader>af',
     new_spec = '<leader>sn',
     open_spec = '<leader>so',
     close_agent = '<Esc>',
