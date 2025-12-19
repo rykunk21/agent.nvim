@@ -2,7 +2,7 @@ name: Build and Deploy Binaries
 
 on:
   push:
-    branches: [ main, dev ]  # Also trigger on dev branch
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -154,16 +154,9 @@ jobs:
           git add lua/ plugin/ autoload/ README.md
           git add -A
           
-          # Commit and push to appropriate branch
-          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-          if [ "$BRANCH_NAME" = "dev" ]; then
-            TARGET_BRANCH="plugin-dev"
-          else
-            TARGET_BRANCH="plugin-dist"
-          fi
-          
-          git commit -m "Update prebuilt binaries from $BRANCH_NAME $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $TARGET_BRANCH
+          # Commit and push
+          git commit -m "Update prebuilt binaries $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git plugin-dist
           
           # Set plugin-dist as default branch (requires GitHub CLI or API)
           echo "Remember to set plugin-dist as the default branch in GitHub settings!"

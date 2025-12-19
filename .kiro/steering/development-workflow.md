@@ -25,40 +25,34 @@ This project follows a distributed development workflow where:
 - Never attempt to run the Neovim plugin on the Windows development machine
 - Focus on code correctness, compilation, and logical implementation
 - Use the spec-driven development workflow for structured feature development
+- **DO NOT IMPLEMENT OPTIONS**: When the user asks for a solution, implement exactly one approach, not multiple options to choose from
 
-### 1.1 Rapid Prototyping Modes
+### 1.1 Development Mode
 
-**Mode 1: Local Build (Fastest Iteration)**
-- Client uses `main` branch with local Rust compilation
+**Single Approach: Dev Branch with Local Build**
+- Client uses `dev` branch with local Rust compilation
 - Changes are immediately testable after push + `:Lazy sync`
-- Requires Rust toolchain on client machine
-- Best for: Rapid Rust code iteration
-
-**Mode 2: CI/CD Development Branch (Production-like)**
-- Client uses `plugin-dev` branch with prebuilt binaries
-- Push to `dev` branch triggers automatic binary builds
-- 2-3 minute delay for CI/CD pipeline
-- Best for: Testing final integration before release
+- Binary detection automatically finds debug builds in `target/debug/`
+- Best for rapid iteration and prototyping
 
 ### 2. Change Integration
 
 **GitHub Workflow:**
 ```bash
-# For production releases
-git add .
-git commit -m "descriptive commit message"
-git push origin main
-
-# For rapid prototyping
+# For development and rapid prototyping
 git add .
 git commit -m "dev: rapid prototype changes"
 git push origin dev
+
+# For production releases (merge dev when ready)
+git checkout main
+git merge dev
+git push origin main
 ```
 
 **Branch Strategy:**
-- **`main`** → **`plugin-dist`**: Production releases with full CI/CD
-- **`dev`** → **`plugin-dev`**: Development testing with prebuilt binaries
-- **Local builds**: Client builds directly from `main` for fastest iteration
+- **`dev`**: Development branch for rapid prototyping with local builds
+- **`main`** → **`plugin-dist`**: Production releases with prebuilt binaries via CI/CD
 
 **What to Push:**
 - All Rust source code changes (`src/`)
@@ -75,31 +69,13 @@ git push origin dev
 - Plugin installed via lazy.nvim configuration
 - Rust toolchain available for local builds (optional)
 
-**Development Configuration Options:**
+**Development Configuration:**
 
-**Option A: Local Build Mode (Fastest)**
 ```lua
 return {
   "rykunk21/agent.nvim",
-  branch = "dev",  -- Use dev branch for rapid prototyping
+  branch = "dev",
   build = "cargo build",  -- Debug build for faster compilation
-  config = function()
-    require('agent').setup({
-      keybindings = {
-        open_agent = '<leader>ag',  -- Changed to avoid conflicts
-        new_spec = '<leader>sn',
-        open_spec = '<leader>so',
-      },
-    })
-  end,
-}
-```
-
-**Option B: Prebuilt Dev Binaries**
-```lua
-return {
-  "rykunk21/agent.nvim",
-  branch = "plugin-dev",  -- Development branch with prebuilt binaries
   config = function()
     require('agent').setup({
       keybindings = {
@@ -113,8 +89,8 @@ return {
 ```
 
 **Testing Process:**
-1. Choose development mode (local build vs prebuilt)
-2. Client runs `:Lazy clean agent.nvim && :Lazy sync`
+1. Client uses dev branch with local debug builds
+2. Client runs `:Lazy clean agent.nvim && :Lazy sync` after changes
 3. Test functionality and report results
 4. Issues communicated back to development environment
 

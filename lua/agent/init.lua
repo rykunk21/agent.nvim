@@ -60,10 +60,14 @@ local function find_rust_binary()
     end
   end
   
-  -- Fallback: try generic binary names
+  -- Fallback: try generic binary names (including debug builds)
   local fallback_paths = {
     plugin_dir .. '/bin/nvim-spec-agent',
     plugin_dir .. '/bin/nvim-spec-agent.exe',
+    plugin_dir .. '/target/debug/nvim-spec-agent',     -- Debug build
+    plugin_dir .. '/target/debug/nvim-spec-agent.exe', -- Debug build Windows
+    plugin_dir .. '/target/release/nvim-spec-agent',   -- Release build
+    plugin_dir .. '/target/release/nvim-spec-agent.exe', -- Release build Windows
     'nvim-spec-agent', -- In PATH
   }
   
