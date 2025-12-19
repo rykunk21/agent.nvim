@@ -63,7 +63,7 @@ jobs:
           chmod +x bin/nvim-spec-agent-*
           
           # Create a selection script
-          cat > bin/select-binary.lua << 'EOF'
+          cat > bin/select-binary.lua << 'LUAEOF'
           -- Auto-select the correct binary for the current platform
           local M = {}
           
@@ -94,7 +94,7 @@ jobs:
           end
           
           return M
-          EOF
+          LUAEOF
       
       - name: Update plugin repository
         run: |
@@ -112,7 +112,7 @@ jobs:
           rm -rf .kiro/ build-config.lua
           
           # Update README for end users (remove development sections)
-          cat > README.md << 'EOF'
+          cat > README.md << 'READMEEOF'
 # agent.nvim
 
 Enhanced Neovim plugin with spec-driven development capabilities.
@@ -163,7 +163,7 @@ If you encounter issues:
 ## License
 
 MIT License
-EOF
+READMEEOF
           
           # Keep only essential plugin files
           git add bin/ lua/ plugin/ autoload/ README.md
