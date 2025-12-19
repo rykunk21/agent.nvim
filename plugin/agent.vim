@@ -19,3 +19,16 @@ lua << EOF
 require('agent').setup()
 EOF
 
+" Commands
+command! -nargs=0 AgentToggle lua require('agent').toggle_agent()
+
+" Auto-commands
+augroup AgentNvim
+  autocmd!
+  " Save conversation on exit
+  autocmd VimLeavePre * lua require('agent').save_state()
+  
+  " Handle window resize
+  autocmd VimResized * lua require('agent').handle_resize()
+augroup END
+

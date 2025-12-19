@@ -100,7 +100,7 @@ function M.setup(user_config)
   
   -- Register commands (no keybindings - let user handle that)
   vim.api.nvim_create_user_command('AgentToggle', function()
-    M.toggle_dual_window()
+    M.toggle_window()
   end, { desc = 'Toggle Agent Interface' })
   
   vim.api.nvim_create_user_command('AgentOpen', function()
@@ -252,7 +252,7 @@ function M.handle_rust_message(message)
 end
 
 -- Public toggle function (main interface)
-function M.toggle_dual_window()
+function M.toggle_window()
   state.dual_window_open = not state.dual_window_open
   if state.dual_window_open then
     M.draw_dual_window()
@@ -335,7 +335,6 @@ function M.close_dual_window()
 end
 
 -- Legacy function aliases for backward compatibility
-M.toggle_agent = M.toggle_dual_window
 M.close_agent_interface = M.close_dual_window
 
 -- Open agent interface (always opens, doesn't toggle)
