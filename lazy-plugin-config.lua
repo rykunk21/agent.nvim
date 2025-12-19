@@ -3,12 +3,15 @@
 
 return {
   "rykunk21/agent.nvim",
-  build = function()
-    -- Determine which build script to run based on OS
-    if vim.fn.has('win32') == 1 or vim.fn.has('win64') == 1 then
-      vim.fn.system('build.bat')
+  -- Build command with permission fix
+  build = function(plugin)
+    -- Make build script executable and run it
+    vim.fn.system('chmod +x ' .. plugin.dir .. '/build.sh')
+    local result = vim.fn.system('cd ' .. plugin.dir .. ' && ./build.sh')
+    if vim.v.shell_error ~= 0 then
+      vim.notify('Build failed: ' .. result, vim.log.levels.ERROR)
     else
-      vim.fn.system('./build.sh')
+      vim.notify('Build completed successfully!', vim.log.levels.INFO)
     end
   end,
   config = function()

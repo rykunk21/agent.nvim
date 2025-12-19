@@ -1,6 +1,6 @@
 # Ensure build scripts are executable on Unix systems
-build.sh text eol=lf
-*.sh text eol=lf
+build.sh text eol=lf executable
+*.sh text eol=lf executable
 
 # Windows batch files
 *.bat text eol=crlf
