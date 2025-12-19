@@ -148,8 +148,9 @@ jobs:
           # Keep the existing README - it already has the correct instructions
           # (No changes needed to README.md)
           
-          # Keep only essential plugin files
-          git add bin/ lua/ plugin/ autoload/ README.md
+          # Keep only essential plugin files (force add binaries since they're in .gitignore)
+          git add -f bin/
+          git add lua/ plugin/ autoload/ README.md
           git add -A
           
           # Commit and push
