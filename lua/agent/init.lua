@@ -261,41 +261,33 @@ function M.toggle_window()
   end
 end
 
--- Internal function to draw the dual window
+-- Internal function to draw the dual window (UI-only, backend-independent)
 function M.draw_dual_window()
-  -- Re-check for binary if not found during setup
+  -- Re-check for binary if not found during setup, but don't block UI
   if not config.rust_binary_path then
     config.rust_binary_path = find_rust_binary()
     if not config.rust_binary_path then
-      vim.notify('agent.nvim: Rust binary still not found', vim.log.levels.ERROR)
-      vim.notify('Try building with: cargo build', vim.log.levels.INFO)
-      state.dual_window_open = false -- Reset state on failure
-      return
+      vim.notify('agent.nvim: Rust binary not found. Backend will be disabled.', vim.log.levels.WARN)
+      vim.notify('UI will work, but agent responses require: cargo build', vim.log.levels.INFO)
+      -- Do NOT return here — continue drawing window
     end
   end
   
-  -- Ensure backend is running
-  if not state.initialized then
+  -- Always draw the UI regardless of backend state
+  M.create_dual_window_interface()
+  
+  -- Optionally start backend if binary is available and not already running
+  if config.rust_binary_path and not state.initialized then
     vim.notify('Starting agent backend...', vim.log.levels.INFO)
-    if not M.start_rust_backend() then
-      vim.notify('Failed to start agent backend', vim.log.levels.ERROR)
-      state.dual_window_open = false -- Reset state on failure
-      return
-    end
-    
-    -- Wait a moment for backend to initialize
-    vim.defer_fn(function()
-      M.create_dual_window_interface()
-    end, 200)
-  else
-    -- Create the dual window interface directly
-    M.create_dual_window_interface()
+    M.start_rust_backend() -- Don't block on failure
   end
   
-  -- Also notify Rust backend
+  -- Optionally notify backend if it's running
   if state.initialized then
     M.send_to_rust({ type = 'open_agent' })
   end
+  
+  state.dual_window_open = true
 end
 
 -- Internal function to close the dual window
@@ -348,7 +340,8 @@ end
 -- Create new spec
 function M.new_spec(feature_name)
   if not state.initialized then
-    vim.notify('Agent backend not initialized', vim.log.levels.ERROR)
+    vim.notify('Agent backend not available. Spec creation requires backend.', vim.log.levels.WARN)
+    vim.notify('Try: cargo build to enable backend features', vim.log.levels.INFO)
     return
   end
   
@@ -366,6 +359,10 @@ end
 -- Open existing spec
 function M.open_spec(spec_name)
   if not state.initialized then
+    vim.notify('Agent backend not available. Spec opening requires backend.', vim.log.levels.WARN)
+    vim.notify('Try: cargo build to enable backend features', vim.log.levels.INFO)
+    return
+  end
     vim.notify('Agent backend not initialized', vim.log.levels.ERROR)
     return
   end
@@ -587,11 +584,17 @@ function M.send_message()
   table.insert(state.chat_history, '**You:** ' .. message)
   table.insert(state.chat_history, '')
   
-  -- Send to Rust backend
-  M.send_to_rust({
-    type = 'chat_message',
-    data = { message = message }
-  })
+  -- Send to Rust backend (if available)
+  if state.initialized then
+    M.send_to_rust({
+      type = 'chat_message',
+      data = { message = message }
+    })
+  else
+    -- Backend not available, show a helpful message
+    table.insert(state.chat_history, '**System:** Backend not available. Start with: cargo build')
+    table.insert(state.chat_history, '')
+  end
   
   -- Update chat window if it exists
   if state.windows.chat and vim.api.nvim_buf_is_valid(state.windows.chat.buf) then
