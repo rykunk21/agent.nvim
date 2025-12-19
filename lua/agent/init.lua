@@ -7,6 +7,7 @@ local state = {
   rust_job_id = nil,
   windows = {},
   current_spec = nil,
+  chat_history = {},
 }
 
 -- Configuration
@@ -218,6 +219,8 @@ function M.handle_rust_message(message)
     M.handle_window_create(message.data)
   elseif msg_type == 'window_update' then
     M.handle_window_update(message.data)
+  elseif msg_type == 'chat_response' then
+    M.handle_chat_response(message.data)
   elseif msg_type == 'notification' then
     vim.notify(message.data.text, message.data.level)
   elseif msg_type == 'spec_update' then
@@ -227,13 +230,24 @@ end
 
 -- Open agent interface
 function M.open_agent()
+  -- Check if interface is already open
+  if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
+    -- If open, focus the input window
+    vim.api.nvim_set_current_win(state.windows.input.win)
+    vim.cmd('startinsert')
+    return
+  end
+  
   if not state.initialized then
     if not M.start_rust_backend() then
       return
     end
   end
   
-  -- Send message to Rust backend to open agent
+  -- Create the dual window interface directly
+  M.create_dual_window_interface()
+  
+  -- Also notify Rust backend
   M.send_to_rust({ type = 'open_agent' })
 end
 
@@ -308,33 +322,170 @@ function M.send_to_rust(message)
   vim.fn.chansend(state.rust_job_id, json_message .. '\n')
 end
 
--- Handle window creation from Rust
-function M.handle_window_create(data)
-  -- Implementation for creating windows based on Rust backend requests
-  local buf = vim.api.nvim_create_buf(false, true)
+-- Create dual window interface (chat history + input)
+function M.create_dual_window_interface()
+  -- Calculate dimensions
+  local width = math.floor(vim.o.columns * (config.ui.window_width_ratio or 0.8))
+  local total_height = math.floor(vim.o.lines * (config.ui.window_height_ratio or 0.6))
+  local input_height = 3
+  local chat_height = total_height - input_height - 1 -- -1 for spacing
   
-  local win_config = {
-    relative = 'editor',
-    width = data.width,
-    height = data.height,
-    col = data.col,
-    row = data.row,
-    style = 'minimal',
-    border = config.ui.border_style,
-  }
+  -- Calculate positions (centered)
+  local col = math.floor((vim.o.columns - width) / 2)
+  local chat_row = math.floor((vim.o.lines - total_height) / 2)
+  local input_row = chat_row + chat_height + 1 -- +1 for spacing
   
-  local win = vim.api.nvim_open_win(buf, data.focusable or false, win_config)
-  
-  state.windows[data.window_type] = {
-    buf = buf,
-    win = win,
-    config = win_config,
-  }
-  
-  -- Set buffer content if provided
-  if data.content then
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, data.content)
+  -- Create chat history window (only if there's content)
+  if state.chat_history and #state.chat_history > 0 then
+    -- Create chat buffer if it doesn't exist
+    if not state.windows.chat or not vim.api.nvim_buf_is_valid(state.windows.chat.buf) then
+      local chat_buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_option(chat_buf, 'filetype', 'markdown')
+      vim.api.nvim_buf_set_option(chat_buf, 'wrap', true)
+      
+      -- Set chat history content
+      vim.api.nvim_buf_set_lines(chat_buf, 0, -1, false, state.chat_history)
+      
+      local chat_config = {
+        relative = 'editor',
+        width = width,
+        height = chat_height,
+        col = col,
+        row = chat_row,
+        style = 'minimal',
+        border = config.ui.border_style,
+        title = 'Agent Chat History',
+        title_pos = 'center',
+        zindex = 40,
+      }
+      
+      local chat_win = vim.api.nvim_open_win(chat_buf, false, chat_config)
+      
+      state.windows.chat = {
+        buf = chat_buf,
+        win = chat_win,
+        config = chat_config,
+      }
+      
+      -- Set up keymaps for chat window
+      vim.keymap.set('n', 'q', function()
+        M.close_agent_interface()
+      end, { buffer = chat_buf, noremap = true, silent = true })
+    end
   end
+  
+  -- Create input window
+  if not state.windows.input or not vim.api.nvim_buf_is_valid(state.windows.input.buf) then
+    local input_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_option(input_buf, 'filetype', 'markdown')
+    
+    local input_config = {
+      relative = 'editor',
+      width = width,
+      height = input_height,
+      col = col,
+      row = input_row,
+      style = 'minimal',
+      border = config.ui.border_style,
+      title = 'Message Input',
+      title_pos = 'center',
+      zindex = 50, -- Higher z-index for input window
+    }
+    
+    local input_win = vim.api.nvim_open_win(input_buf, true, input_config)
+    
+    state.windows.input = {
+      buf = input_buf,
+      win = input_win,
+      config = input_config,
+    }
+    
+    -- Set up keymaps for input window
+    vim.keymap.set('n', '<CR>', function()
+      M.send_message()
+    end, { buffer = input_buf, noremap = true, silent = true })
+    
+    vim.keymap.set('i', '<C-CR>', function()
+      M.send_message()
+    end, { buffer = input_buf, noremap = true, silent = true })
+    
+    vim.keymap.set('n', '<Esc>', function()
+      M.close_agent_interface()
+    end, { buffer = input_buf, noremap = true, silent = true })
+    
+    -- Start in insert mode for immediate typing
+    vim.cmd('startinsert')
+  end
+end
+
+-- Close agent interface
+function M.close_agent_interface()
+  -- Close chat window
+  if state.windows.chat and vim.api.nvim_win_is_valid(state.windows.chat.win) then
+    vim.api.nvim_win_close(state.windows.chat.win, true)
+    state.windows.chat = nil
+  end
+  
+  -- Close input window
+  if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
+    vim.api.nvim_win_close(state.windows.input.win, true)
+    state.windows.input = nil
+  end
+end
+
+-- Send message from input window
+function M.send_message()
+  if not state.windows.input or not vim.api.nvim_buf_is_valid(state.windows.input.buf) then
+    return
+  end
+  
+  -- Get message from input buffer
+  local lines = vim.api.nvim_buf_get_lines(state.windows.input.buf, 0, -1, false)
+  local message = table.concat(lines, '\n'):gsub('^%s*(.-)%s*$', '%1') -- trim whitespace
+  
+  if message == '' then
+    return
+  end
+  
+  -- Clear input buffer
+  vim.api.nvim_buf_set_lines(state.windows.input.buf, 0, -1, false, { '' })
+  
+  -- Add message to chat history
+  if not state.chat_history then
+    state.chat_history = {}
+  end
+  
+  table.insert(state.chat_history, '**You:** ' .. message)
+  table.insert(state.chat_history, '')
+  
+  -- Send to Rust backend
+  M.send_to_rust({
+    type = 'chat_message',
+    data = { message = message }
+  })
+  
+  -- Update chat window if it exists
+  if state.windows.chat and vim.api.nvim_buf_is_valid(state.windows.chat.buf) then
+    vim.api.nvim_buf_set_lines(state.windows.chat.buf, 0, -1, false, state.chat_history)
+    -- Scroll to bottom
+    local line_count = #state.chat_history
+    vim.api.nvim_win_set_cursor(state.windows.chat.win, {line_count, 0})
+  else
+    -- Create chat window if it doesn't exist but we now have history
+    M.create_dual_window_interface()
+  end
+  
+  -- Keep focus on input window
+  if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
+    vim.api.nvim_set_current_win(state.windows.input.win)
+    vim.cmd('startinsert')
+  end
+end
+
+-- Handle window creation from Rust (updated)
+function M.handle_window_create(data)
+  -- Use our dual window system instead of single window
+  M.create_dual_window_interface()
 end
 
 -- Handle window updates from Rust
@@ -350,6 +501,25 @@ function M.handle_window_update(data)
   
   if data.cursor then
     vim.api.nvim_win_set_cursor(window.win, data.cursor)
+  end
+end
+
+-- Handle chat response from Rust
+function M.handle_chat_response(data)
+  if not state.chat_history then
+    state.chat_history = {}
+  end
+  
+  -- Add agent response to chat history
+  table.insert(state.chat_history, data.message)
+  table.insert(state.chat_history, '')
+  
+  -- Update chat window if it exists
+  if state.windows.chat and vim.api.nvim_buf_is_valid(state.windows.chat.buf) then
+    vim.api.nvim_buf_set_lines(state.windows.chat.buf, 0, -1, false, state.chat_history)
+    -- Scroll to bottom
+    local line_count = #state.chat_history
+    vim.api.nvim_win_set_cursor(state.windows.chat.win, {line_count, 0})
   end
 end
 

@@ -26,15 +26,39 @@ This project follows a distributed development workflow where:
 - Focus on code correctness, compilation, and logical implementation
 - Use the spec-driven development workflow for structured feature development
 
+### 1.1 Rapid Prototyping Modes
+
+**Mode 1: Local Build (Fastest Iteration)**
+- Client uses `main` branch with local Rust compilation
+- Changes are immediately testable after push + `:Lazy sync`
+- Requires Rust toolchain on client machine
+- Best for: Rapid Rust code iteration
+
+**Mode 2: CI/CD Development Branch (Production-like)**
+- Client uses `plugin-dev` branch with prebuilt binaries
+- Push to `dev` branch triggers automatic binary builds
+- 2-3 minute delay for CI/CD pipeline
+- Best for: Testing final integration before release
+
 ### 2. Change Integration
 
 **GitHub Workflow:**
 ```bash
-# After making changes locally
+# For production releases
 git add .
 git commit -m "descriptive commit message"
 git push origin main
+
+# For rapid prototyping
+git add .
+git commit -m "dev: rapid prototype changes"
+git push origin dev
 ```
+
+**Branch Strategy:**
+- **`main`** → **`plugin-dist`**: Production releases with full CI/CD
+- **`dev`** → **`plugin-dev`**: Development testing with prebuilt binaries
+- **Local builds**: Client builds directly from `main` for fastest iteration
 
 **What to Push:**
 - All Rust source code changes (`src/`)
@@ -49,26 +73,66 @@ git push origin main
 **Client Machine Setup:**
 - Linux environment with Neovim installed
 - Plugin installed via lazy.nvim configuration
-- Rust toolchain available for building binaries
+- Rust toolchain available for local builds (optional)
+
+**Development Configuration Options:**
+
+**Option A: Local Build Mode (Fastest)**
+```lua
+return {
+  "rykunk21/agent.nvim",
+  branch = "dev",  -- Use dev branch for rapid prototyping
+  build = "cargo build",  -- Debug build for faster compilation
+  config = function()
+    require('agent').setup({
+      keybindings = {
+        open_agent = '<leader>ag',  -- Changed to avoid conflicts
+        new_spec = '<leader>sn',
+        open_spec = '<leader>so',
+      },
+    })
+  end,
+}
+```
+
+**Option B: Prebuilt Dev Binaries**
+```lua
+return {
+  "rykunk21/agent.nvim",
+  branch = "plugin-dev",  -- Development branch with prebuilt binaries
+  config = function()
+    require('agent').setup({
+      keybindings = {
+        open_agent = '<leader>ag',
+        new_spec = '<leader>sn',
+        open_spec = '<leader>so',
+      },
+    })
+  end,
+}
+```
 
 **Testing Process:**
-1. Client pulls latest changes from GitHub (automatic via lazy.nvim)
-2. Plugin manager runs build script during update
-3. Client tests functionality and reports results back
-4. Any issues are communicated back to development environment
+1. Choose development mode (local build vs prebuilt)
+2. Client runs `:Lazy clean agent.nvim && :Lazy sync`
+3. Test functionality and report results
+4. Issues communicated back to development environment
 
 **Test Commands on Client:**
 ```bash
 # Check plugin status
 :checkhealth agent
 
-# Test basic functionality
-<leader>sa  # Should open agent interface
+# Test basic functionality (note: changed keybinding)
+<leader>ag  # Should open agent interface
 <leader>sn  # Should create new spec
 <leader>so  # Should open existing spec
 
 # Check for errors
 :messages
+
+# Debug paths
+:lua require('agent').debug_paths()
 ```
 
 ## Communication Protocol
@@ -192,16 +256,30 @@ The Lua code searches for binaries in this order:
 For basic functionality, the client should be able to:
 1. Install plugin without errors
 2. Run `:checkhealth agent` successfully
-3. Execute `<leader>sa` without "binary not found" errors
-4. See some kind of response (even if minimal)
+3. Execute `<leader>ag` without "binary not found" errors
+4. See floating window appear when toggling agent
 
-### Full Functionality
+### Current Status (Working)
+
+✅ **Prebuilt Binary System**: CI/CD builds and distributes binaries automatically
+✅ **Platform Detection**: Correctly identifies and uses Linux x64 binary
+✅ **Rust Backend Communication**: JSON communication between Lua and Rust working
+✅ **Window Creation**: Floating windows appear when agent is toggled
+✅ **Keybinding Resolution**: Changed to `<leader>ag` to avoid timeout conflicts
+
+### Full Functionality (In Progress)
 
 For complete functionality:
-1. Dual window interface opens and displays properly
-2. Can create and navigate specs
-3. Agent communication works bidirectionally
-4. All keybindings function as expected
+1. Dual window interface with chat history and input
+2. Can create and navigate specs through UI
+3. Agent communication works bidirectionally with responses
+4. All keybindings function reliably
+
+### Development Workflow Status
+
+✅ **Production Pipeline**: `main` → `plugin-dist` for stable releases
+✅ **Development Pipeline**: `dev` → `plugin-dev` for rapid prototyping
+✅ **Local Development**: Direct builds from `main` for fastest iteration
 
 ## Version Control Strategy
 

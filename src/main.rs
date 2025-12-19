@@ -50,18 +50,16 @@ fn handle_message(message: &str) -> Result<(), Box<dyn std::error::Error>> {
             send_response("pong", json!({"status": "alive"}));
         }
         "open_agent" => {
-            // For now, just acknowledge the request
-            // TODO: Implement actual window creation via Neovim API
-            send_response("window_create", json!({
-                "window_type": "chat",
-                "width": 80,
-                "height": 20,
-                "col": 10,
-                "row": 5,
-                "focusable": true,
-                "content": ["Welcome to agent.nvim!", "Type your message here..."]
-            }));
             send_response("agent_opened", json!({"status": "success"}));
+        }
+        "chat_message" => {
+            let message = parsed["data"]["message"].as_str().unwrap_or("");
+            info!("Received chat message: {}", message);
+            
+            // Echo back a simple response for now
+            send_response("chat_response", json!({
+                "message": format!("**Agent:** I received your message: \"{}\"", message)
+            }));
         }
         "close_agent" => {
             send_response("agent_closed", json!({"status": "success"}));

@@ -22,7 +22,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+temp/
 
 # Plugin manager artifacts (user-specific)
 lazy-lock.json
 packer_compiled.lua
+
