@@ -85,35 +85,24 @@ end
 function M.setup(user_config)
   config = vim.tbl_deep_extend('force', default_config, user_config or {})
   
-  -- Find the Rust binary
+  -- Find the Rust binary (but don't fail setup if not found)
   config.rust_binary_path = find_rust_binary()
   
   if not config.rust_binary_path then
     local plugin_dir = get_plugin_dir()
-    vim.notify('agent.nvim: Rust binary not found!', vim.log.levels.ERROR)
+    vim.notify('agent.nvim: Rust binary not found initially', vim.log.levels.WARN)
     vim.notify('Plugin directory: ' .. plugin_dir, vim.log.levels.INFO)
-    
-    -- Check if Makefile exists
-    local makefile = plugin_dir .. '/Makefile'
-    if vim.fn.filereadable(makefile) == 1 then
-      vim.notify('Makefile found. Try running manually:', vim.log.levels.INFO)
-      vim.notify('  cd ' .. plugin_dir .. ' && make', vim.log.levels.INFO)
-    else
-      vim.notify('Makefile not found at: ' .. makefile, vim.log.levels.WARN)
-    end
+    vim.notify('Binary will be searched again when needed', vim.log.levels.INFO)
     
     -- Check if Rust is available
     if vim.fn.executable('cargo') == 1 then
-      vim.notify('Cargo found. You can build manually:', vim.log.levels.INFO)
-      vim.notify('  cd ' .. plugin_dir .. ' && cargo build --release', vim.log.levels.INFO)
+      vim.notify('Cargo found. You can build with: cd ' .. plugin_dir .. ' && cargo build', vim.log.levels.INFO)
     else
       vim.notify('Cargo not found. Install Rust from: https://rustup.rs/', vim.log.levels.WARN)
     end
-    
-    return
   end
   
-  -- Set up keybindings with better conflict resolution
+  -- ALWAYS set up keybindings, regardless of binary status
   vim.schedule(function()
     if config.keybindings.open_agent then
       vim.keymap.set('n', config.keybindings.open_agent, M.open_agent, { 
@@ -140,8 +129,8 @@ function M.setup(user_config)
     end
   end)
   
-  -- Auto-start if configured
-  if config.auto_start then
+  -- Auto-start if configured and binary is available
+  if config.auto_start and config.rust_binary_path then
     M.start_rust_backend()
   end
 end
@@ -254,6 +243,16 @@ function M.open_agent()
     vim.api.nvim_set_current_win(state.windows.input.win)
     vim.cmd('startinsert')
     return
+  end
+  
+  -- Re-check for binary if not found during setup
+  if not config.rust_binary_path then
+    config.rust_binary_path = find_rust_binary()
+    if not config.rust_binary_path then
+      vim.notify('agent.nvim: Rust binary still not found', vim.log.levels.ERROR)
+      vim.notify('Try building with: cargo build', vim.log.levels.INFO)
+      return
+    end
   end
   
   -- Ensure backend is running
