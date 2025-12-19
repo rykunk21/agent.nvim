@@ -2,93 +2,27 @@
 /target/
 Cargo.lock
 
-# Compiled binaries (will be built by users)
+# Build outputs
 /bin/
-*.exe
-*.dll
-*.so
-*.dylib
 
-# Rust-specific
-**/*.rs.bk
-*.pdb
-
-# OS-specific files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-*~
-
-# Editor-specific files
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.vim/
-.netrwhist
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 
 # Temporary files
 *.tmp
 *.temp
-*.log
 
-# Kiro IDE specific (keep specs but ignore temp files)
-.kiro/temp/
-.kiro/cache/
-.kiro/.temp
-
-# Node.js (if any JS tooling is added later)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Python (if any Python tooling is added later)
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-
-# Test artifacts
-/test-results/
-/coverage/
-
-# Local configuration files
-.env
-.env.local
-.env.*.local
-
-# Backup files
-*.bak
-*.backup
-*.orig
-
-# Archive files
-*.zip
-*.tar.gz
-*.rar
-
-# IDE and editor files
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
-*.sublime-project
-*.sublime-workspace
-
-# Documentation build artifacts
-/docs/_build/
-/docs/site/
-
-# Local development files
-/local/
-/dev/
-/scratch/
+# Plugin manager artifacts (user-specific)
+lazy-lock.json
+packer_compiled.lua

@@ -80,13 +80,13 @@ function M.setup(user_config)
     vim.notify('nvim-spec-agent: Rust binary not found!', vim.log.levels.ERROR)
     vim.notify('Plugin directory: ' .. plugin_dir, vim.log.levels.INFO)
     
-    -- Check if build script exists
-    local build_script = plugin_dir .. '/build.sh'
-    if vim.fn.filereadable(build_script) == 1 then
-      vim.notify('Build script found. Try running manually:', vim.log.levels.INFO)
-      vim.notify('  cd ' .. plugin_dir .. ' && ./build.sh', vim.log.levels.INFO)
+    -- Check if Makefile exists
+    local makefile = plugin_dir .. '/Makefile'
+    if vim.fn.filereadable(makefile) == 1 then
+      vim.notify('Makefile found. Try running manually:', vim.log.levels.INFO)
+      vim.notify('  cd ' .. plugin_dir .. ' && make', vim.log.levels.INFO)
     else
-      vim.notify('Build script not found at: ' .. build_script, vim.log.levels.WARN)
+      vim.notify('Makefile not found at: ' .. makefile, vim.log.levels.WARN)
     end
     
     -- Check if Rust is available

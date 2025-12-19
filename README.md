@@ -27,19 +27,7 @@ An enhanced Neovim plugin with spec-driven development capabilities, built in Ru
 
 ```lua
 return {
-  "rykunk21/agent.nvim",
-  -- Build with permission fix (recommended for Linux/Mac)
-  build = function(plugin)
-    -- Fix permissions and build
-    vim.fn.system('chmod +x ' .. plugin.dir .. '/build.sh')
-    local build_cmd = vim.fn.has('win32') == 1 and 'build.bat' or './build.sh'
-    local result = vim.fn.system('cd ' .. plugin.dir .. ' && ' .. build_cmd)
-    if vim.v.shell_error ~= 0 then
-      vim.notify('Build failed: ' .. result, vim.log.levels.ERROR)
-    else
-      vim.notify('Build completed successfully!', vim.log.levels.INFO)
-    end
-  end,
+  "rykunk21/agent.nvim", -- Prebuilt binaries - no build step needed!
   config = function()
     require('agent').setup({
       keybindings = {
@@ -75,9 +63,7 @@ git clone https://github.com/rykunk21/agent.nvim.git ~/.local/share/nvim/site/pa
 2. Build the Rust binary:
 ```bash
 cd ~/.local/share/nvim/site/pack/plugins/start/agent.nvim
-./build.sh  # On Linux/macOS
-# or
-build.bat   # On Windows
+make
 ```
 
 3. Add the setup to your `init.lua`:
@@ -181,13 +167,13 @@ agent.nvim/
 If you get "Rust binary not found" errors:
 
 1. Make sure Rust is installed: `cargo --version`
-2. Fix permissions and run build script:
+2. Make sure make is installed: `make --version`
+3. Run the build manually:
    ```bash
    cd ~/.local/share/nvim/lazy/agent.nvim  # or your plugin directory
-   chmod +x build.sh
-   ./build.sh
+   make
    ```
-3. Check that the binary exists in `bin/nvim-spec-agent`
+4. Check that the binary exists in `bin/nvim-spec-agent`
 
 ### Permission Denied
 

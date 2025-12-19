@@ -49,3 +49,8 @@ else
 fi
 
 echo "🎉 Build completed successfully!"
+
+# Clean up build artifacts to save space
+echo "🧹 Cleaning up build artifacts..."
+rm -rf target/
+echo "✅ Cleanup completed - only keeping essential binary"

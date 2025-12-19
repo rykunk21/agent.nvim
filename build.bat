@@ -40,3 +40,8 @@ if exist target\release\nvim-spec-agent.exe (
 )
 
 echo 🎉 Build completed successfully!
+
+REM Clean up build artifacts to save space
+echo 🧹 Cleaning up build artifacts...
+rmdir /s /q target 2>nul
+echo ✅ Cleanup completed - only keeping essential binary

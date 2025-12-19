@@ -39,7 +39,7 @@ local function get_plugin_dir()
   return vim.fn.fnamemodify(script_dir, ':h:h')
 end
 
--- Find the Rust binary
+-- Find the prebuilt binary for current platform
 local function find_rust_binary()
   if config.rust_binary_path then
     return config.rust_binary_path
@@ -48,23 +48,31 @@ local function find_rust_binary()
   -- Get the plugin root directory
   local plugin_dir = get_plugin_dir()
   
-  -- Try different possible locations
-  local possible_paths = {
+  -- Try to use the platform-specific binary selector
+  local selector_path = plugin_dir .. '/bin/select-binary.lua'
+  if vim.fn.filereadable(selector_path) == 1 then
+    local selector = dofile(selector_path)
+    local binary_path = selector.get_binary_path(plugin_dir)
+    if binary_path then
+      vim.notify('Found platform-specific binary: ' .. binary_path, vim.log.levels.DEBUG)
+      return binary_path
+    end
+  end
+  
+  -- Fallback: try generic binary names
+  local fallback_paths = {
     plugin_dir .. '/bin/nvim-spec-agent',
     plugin_dir .. '/bin/nvim-spec-agent.exe',
-    plugin_dir .. '/target/release/nvim-spec-agent',
-    plugin_dir .. '/target/release/nvim-spec-agent.exe',
     'nvim-spec-agent', -- In PATH
   }
   
-  for _, path in ipairs(possible_paths) do
+  for _, path in ipairs(fallback_paths) do
     if vim.fn.executable(path) == 1 then
-      vim.notify('Found Rust binary at: ' .. path, vim.log.levels.DEBUG)
+      vim.notify('Found fallback binary: ' .. path, vim.log.levels.DEBUG)
       return path
     end
   end
   
-  vim.notify('Rust binary not found. Searched paths: ' .. vim.inspect(possible_paths), vim.log.levels.WARN)
   return nil
 end
 
@@ -80,13 +88,13 @@ function M.setup(user_config)
     vim.notify('agent.nvim: Rust binary not found!', vim.log.levels.ERROR)
     vim.notify('Plugin directory: ' .. plugin_dir, vim.log.levels.INFO)
     
-    -- Check if build script exists
-    local build_script = plugin_dir .. '/build.sh'
-    if vim.fn.filereadable(build_script) == 1 then
-      vim.notify('Build script found. Try running manually:', vim.log.levels.INFO)
-      vim.notify('  cd ' .. plugin_dir .. ' && ./build.sh', vim.log.levels.INFO)
+    -- Check if Makefile exists
+    local makefile = plugin_dir .. '/Makefile'
+    if vim.fn.filereadable(makefile) == 1 then
+      vim.notify('Makefile found. Try running manually:', vim.log.levels.INFO)
+      vim.notify('  cd ' .. plugin_dir .. ' && make', vim.log.levels.INFO)
     else
-      vim.notify('Build script not found at: ' .. build_script, vim.log.levels.WARN)
+      vim.notify('Makefile not found at: ' .. makefile, vim.log.levels.WARN)
     end
     
     -- Check if Rust is available

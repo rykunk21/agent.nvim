@@ -1,0 +1,177 @@
+name: Build and Deploy Binaries
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'src/**', 'Cargo.toml', 'Cargo.lock' ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build binaries and update plugin repo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: |
+            x86_64-unknown-linux-gnu
+            aarch64-unknown-linux-gnu
+            x86_64-apple-darwin
+            aarch64-apple-darwin
+            x86_64-pc-windows-msvc
+      
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          cargo install cross
+      
+      - name: Build Linux x86_64
+        run: cargo build --release --target x86_64-unknown-linux-gnu --bin nvim-spec-agent
+      
+      - name: Build Linux ARM64
+        run: cross build --release --target aarch64-unknown-linux-gnu --bin nvim-spec-agent
+      
+      - name: Build macOS x86_64
+        run: cargo build --release --target x86_64-apple-darwin --bin nvim-spec-agent
+      
+      - name: Build macOS ARM64
+        run: cargo build --release --target aarch64-apple-darwin --bin nvim-spec-agent
+      
+      - name: Build Windows x86_64
+        run: cargo build --release --target x86_64-pc-windows-msvc --bin nvim-spec-agent
+      
+      - name: Prepare binary distribution
+        run: |
+          mkdir -p bin
+          
+          # Copy binaries with platform-specific names
+          cp target/x86_64-unknown-linux-gnu/release/nvim-spec-agent bin/nvim-spec-agent-linux-x64
+          cp target/aarch64-unknown-linux-gnu/release/nvim-spec-agent bin/nvim-spec-agent-linux-arm64
+          cp target/x86_64-apple-darwin/release/nvim-spec-agent bin/nvim-spec-agent-macos-x64
+          cp target/aarch64-apple-darwin/release/nvim-spec-agent bin/nvim-spec-agent-macos-arm64
+          cp target/x86_64-pc-windows-msvc/release/nvim-spec-agent.exe bin/nvim-spec-agent-windows-x64.exe
+          
+          # Make Unix binaries executable
+          chmod +x bin/nvim-spec-agent-*
+          
+          # Create a selection script
+          cat > bin/select-binary.lua << 'EOF'
+          -- Auto-select the correct binary for the current platform
+          local M = {}
+          
+          function M.get_binary_path(plugin_dir)
+            local os_name = vim.loop.os_uname().sysname:lower()
+            local arch = vim.loop.os_uname().machine:lower()
+            
+            -- Normalize architecture
+            if arch == "x86_64" or arch == "amd64" then
+              arch = "x64"
+            elseif arch == "aarch64" or arch == "arm64" then
+              arch = "arm64"
+            end
+            
+            local binary_name
+            if os_name:match("linux") then
+              binary_name = "nvim-spec-agent-linux-" .. arch
+            elseif os_name:match("darwin") then
+              binary_name = "nvim-spec-agent-macos-" .. arch
+            elseif os_name:match("windows") then
+              binary_name = "nvim-spec-agent-windows-" .. arch .. ".exe"
+            else
+              return nil
+            end
+            
+            local binary_path = plugin_dir .. "/bin/" .. binary_name
+            return vim.fn.filereadable(binary_path) == 1 and binary_path or nil
+          end
+          
+          return M
+          EOF
+      
+      - name: Update plugin repository
+        run: |
+          # Configure git
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          
+          # Create plugin-only branch if it doesn't exist
+          git checkout -B plugin-dist
+          
+          # Remove source code, keep only plugin files
+          find . -name "*.rs" -delete
+          rm -rf src/ target/ Cargo.toml Cargo.lock build.sh build.bat Makefile
+          rm -rf .github/workflows/release.yml scripts/
+          rm -rf .kiro/ build-config.lua
+          
+          # Update README for end users (remove development sections)
+          cat > README.md << 'EOF'
+# agent.nvim
+
+Enhanced Neovim plugin with spec-driven development capabilities.
+
+## Installation
+
+### Using lazy.nvim
+
+```lua
+return {
+  "rykunk21/agent.nvim",
+  config = function()
+    require('agent').setup({
+      keybindings = {
+        open_agent = '<leader>sa',  -- Open spec agent
+        new_spec = '<leader>sn',    -- Create new spec
+        open_spec = '<leader>so',   -- Open existing spec
+      },
+      ui = {
+        border_style = 'rounded',
+        window_width_ratio = 0.8,
+        window_height_ratio = 0.6,
+      },
+    })
+  end,
+  cmd = { 'SpecAgent', 'SpecNew', 'SpecOpen' },
+  keys = {
+    { '<leader>sa', desc = 'Open Spec Agent' },
+    { '<leader>sn', desc = 'New Spec' },
+    { '<leader>so', desc = 'Open Spec' },
+  },
+}
+```
+
+## Usage
+
+- `<leader>sa` - Open the spec agent interface
+- `<leader>sn` - Create a new spec
+- `<leader>so` - Open an existing spec
+
+## Troubleshooting
+
+If you encounter issues:
+1. Check `:checkhealth agent`
+2. Ensure you're using Neovim 0.5.0+
+3. Check `:messages` for error details
+
+## License
+
+MIT License
+EOF
+          
+          # Keep only essential plugin files
+          git add bin/ lua/ plugin/ autoload/ README.md
+          git add -A
+          
+          # Commit and push
+          git commit -m "Update prebuilt binaries $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+          git push -f origin plugin-dist
+          
+          # Set plugin-dist as default branch (requires GitHub CLI or API)
+          echo "Remember to set plugin-dist as the default branch in GitHub settings!"

@@ -3,17 +3,7 @@
 
 return {
   "rykunk21/agent.nvim",
-  -- Build command with permission fix
-  build = function(plugin)
-    -- Make build script executable and run it
-    vim.fn.system('chmod +x ' .. plugin.dir .. '/build.sh')
-    local result = vim.fn.system('cd ' .. plugin.dir .. ' && ./build.sh')
-    if vim.v.shell_error ~= 0 then
-      vim.notify('Build failed: ' .. result, vim.log.levels.ERROR)
-    else
-      vim.notify('Build completed successfully!', vim.log.levels.INFO)
-    end
-  end,
+  -- No build step needed! Prebuilt binaries included
   config = function()
     require('agent').setup({
       -- Optional configuration
