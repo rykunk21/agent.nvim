@@ -7,6 +7,8 @@ pub mod spec;
 pub mod config;
 pub mod utils;
 pub mod examples;
+pub mod communication;
+pub mod container;
 
 use crate::config::Settings;
 use crate::ui::WindowManager;

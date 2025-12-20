@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mcp-orchestration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nvim-spec-agent-mcp
+    ports:
+      - "50051:50051"  # gRPC port
+    environment:
+      - GRPC_PORT=50051
+      - LOG_LEVEL=INFO
+      - PYTHONPATH=/app
+    volumes:
+      # Mount configuration files
+      - ./container/config:/app/config:ro
+      # Mount workspace for file operations (when needed)
+      - ${PWD}:/workspace:ro
+    networks:
+      - agent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; import src.communication.grpc_server as server; server.health_check()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+networks:
+  agent-network:
+    driver: bridge

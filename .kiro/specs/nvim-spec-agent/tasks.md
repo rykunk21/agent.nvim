@@ -1,258 +1,310 @@
 # Implementation Plan
 
-- [x] 1. Set up Rust project structure and dependencies
+- [x] 1. Comprehensive project review and architecture refactoring
+  - Review existing codebase structure and identify components that need refactoring for three-layer architecture
+  - Analyze current Lua-Rust communication and plan migration to gRPC-based system
+  - Assess existing window management and UI components for compatibility with new architecture
+  - Document current state and create refactoring roadmap for MCP orchestration layer integration
+  - Identify reusable components and those requiring complete rewrite
+  - _Requirements: 1.1, 1.2, 6.1, 8.1_
 
+- [x] 1.1 Audit existing Rust backend implementation
+  - Review current Rust modules (agent/, ui/, spec/, config/, utils/) for three-layer compatibility
+  - Identify which components can be adapted vs need complete rewrite
+  - Document current communication patterns and data structures
+  - Plan migration strategy for existing functionality to new architecture
+  - _Requirements: 8.1, 10.2_
 
+- [x] 1.2 Audit existing Lua frontend implementation
+  - Review current Lua modules and their integration with existing Rust backend
+  - Assess window management and UI components for gRPC communication compatibility
+  - Document current keybinding and command registration patterns
+  - Plan context gathering implementation for MCP orchestration layer
+  - _Requirements: 2.1, 2.2, 11.1, 11.2_
 
+- [x] 1.3 Design container architecture for MCP orchestration layer
+  - Create Docker container specification for MCP orchestration layer
+  - Design LLM provider abstraction layer (Ollama, OpenAI, Anthropic)
+  - Plan MCP client integration for external services
+  - Design gRPC server interface for Rust controller communication
+  - _Requirements: 6.2, 7.1, 12.1, 12.2_
 
+- [ ]* 1.4 Write property test for architecture refactoring validation
+  - **Property 1: Plugin installation with prebuilt binaries**
+  - **Validates: Requirements 1.1, 1.2, 1.4, 1.5**
 
+- [x] 2. Refactor Rust controller for container management
+  - Refactor existing Rust backend to focus on container lifecycle management
+  - Implement Docker container management (pull, start, stop, health monitoring)
+  - Replace direct agent logic with gRPC client for container communication
+  - Migrate existing configuration management to support container and LLM provider configs
+  - Update error handling for container-specific scenarios
+  - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
+- [x] 2.1 Implement container lifecycle management
+  - Create ContainerManager for Docker operations (pull, start, stop, cleanup)
+  - Implement container health monitoring and automatic recovery
+  - Add container configuration management for different LLM providers
+  - Handle container startup failures with diagnostic information
+  - _Requirements: 6.1, 6.2, 6.4, 6.5_
 
+- [x] 2.2 Implement gRPC server for Lua frontend communication
+  - Create gRPC server to replace existing Lua-Rust communication
+  - Implement request routing to container via gRPC client
+  - Add message correlation and async response handling
+  - Implement connection health monitoring and retry logic
+  - _Requirements: 8.1, 8.2, 8.3, 8.5_
 
+- [x] 2.3 Implement gRPC client for container communication
+  - Create gRPC client for communication with MCP orchestration layer
+  - Implement bidirectional streaming for real-time operations
+  - Add context data serialization and transmission
+  - Handle container communication failures and recovery
+  - _Requirements: 8.1, 8.2, 8.4, 8.5_
 
-  - Create Cargo.toml with neovim-lib, tokio, serde, and proptest dependencies
-  - Set up directory structure for ui, agent, spec, config, and utils modules
-  - Configure build system for Neovim plugin compilation
-  - Create basic lib.rs with plugin entry point
-  - _Requirements: 1.1, 1.2_
+- [ ]* 2.4 Write property test for container lifecycle management
+  - **Property 13: Docker container lifecycle management**
+  - **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5**
 
-- [ ]* 1.1 Write property test for plugin installation completeness
-  - **Property 1: Plugin installation completeness**
-  - **Validates: Requirements 1.2, 1.3, 1.5**
+- [x] 3. Refactor Lua frontend for gRPC communication
+  - Update existing Lua modules to use gRPC instead of direct Rust communication
+  - Implement context gathering from Neovim (buffers, files, diagnostics, project structure)
+  - Refactor window management to work with new communication patterns
+  - Update keybinding and command registration for new architecture
+  - Migrate existing UI components to work with container-based responses
+  - _Requirements: 2.1, 2.2, 8.1, 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [x] 2. Implement core data models and serialization
+- [x] 3.1 Implement gRPC client in Lua
+  - Create Lua gRPC client for communication with Rust controller
+  - Implement async request/response handling with callbacks
+  - Add message queue for concurrent operations
+  - Implement connection management and error recovery
+  - _Requirements: 8.1, 8.2, 8.3_
 
+- [x] 3.2 Implement context gathering system
+  - Create context provider for current buffer contents and cursor position
+  - Implement file system context gathering (paths, open files, project structure)
+  - Add edit history and change tracking collection
+  - Implement diagnostic information collection from LSP and plugins
+  - Add context sanitization and structuring before transmission
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-
-
-  - Create Conversation, Message, and MessageContent structs with serde support
-  - Implement SpecContext and SpecPhase enums for spec-driven development
-  - Create OperationBlock and CommandBlock data structures
-  - Add WindowState and WindowConfig models for UI management
-  - _Requirements: 2.4, 3.4_
-
-- [ ]* 2.1 Write property test for conversation persistence
-  - **Property 4: Conversation persistence**
-  - **Validates: Requirements 2.4**
-
-- [x] 3. Create Neovim API integration layer
-
-
-
-
-  - Implement neovim_api.rs with wrapped Neovim API calls
-  - Create async communication handlers for msgpack-rpc
-  - Add error handling and type conversions for Neovim data types
-  - Implement plugin registration and command setup
-  - _Requirements: 1.3, 1.5_
-
-- [x] 4. Build window management system
-
-
-
-
-
-  - Implement WindowManager for floating window creation and positioning
-  - Create responsive layout calculations for different terminal sizes
-  - Add z-index management and window focus handling
-  - Implement window state persistence across sessions
+- [x] 3.3 Refactor window management for new architecture
+  - Update existing window management to work with gRPC responses
+  - Implement real-time UI updates from container responses
+  - Add progress indicators for container operations
+  - Handle UI state synchronization with container state
   - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-- [ ]* 4.1 Write property test for two-window interface behavior
-  - **Property 2: Two-window interface behavior**
-  - **Validates: Requirements 2.1, 2.2, 2.5**
+- [ ]* 3.4 Write property test for gRPC communication chain
+  - **Property 15: gRPC communication chain integrity**
+  - **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 
-- [ ]* 4.2 Write property test for window responsive layout
-  - **Property 3: Window responsive layout**
-  - **Validates: Requirements 2.3**
+- [ ] 4. Implement MCP orchestration layer container
+  - Create a second source code binary crate that will get containerized with docker
+  - Create Docker container with MCP orchestration capabilities
+  - Implement LLM provider abstraction (Ollama, OpenAI, Anthropic)
+  - Create gRPC server for Rust controller communication
+  - Implement MCP client for external service connections
+  - Add secure API key management for cloud LLM providers
+  - _Requirements: 6.2, 7.1, 7.2, 12.1, 12.2, 12.3, 12.4_
 
-- [x] 5. Implement visual operation blocks system
+- [ ] 4.1 Implement LLM provider manager
+  - Create unified interface for different LLM providers
+  - Implement Ollama integration for local models
+  - Add OpenAI API integration with secure key management
+  - Implement Anthropic API integration
+  - Add provider switching and fallback mechanisms
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
+- [ ] 4.2 Implement MCP orchestration engine
+  - Create MCP orchestration layer that works with any LLM provider
+  - Implement MCP protocol handling and tool discovery
+  - Add MCP session management and state persistence
+  - Route LLM requests through MCP tools and external services
+  - _Requirements: 7.1, 7.2, 9.1, 9.2_
 
+- [ ] 4.3 Implement container gRPC server
+  - Create gRPC server for communication with Rust controller
+  - Handle conversation management and context processing
+  - Implement streaming responses for long operations
+  - Add health check and status endpoints
+  - _Requirements: 8.1, 8.2, 10.5_
 
-
-
-  - Create visual_blocks.rs for read/write/command block rendering
-  - Implement progress indicators and status updates
-  - Add dynamic layout adjustment for command blocks
-  - Create block state management and cleanup
-  - _Requirements: 4.1, 4.3_
-
-- [ ]* 5.1 Write property test for operation visualization
-  - **Property 7: Operation visualization**
-  - **Validates: Requirements 4.1**
-
-- [ ]* 5.2 Write property test for dynamic layout adjustment
-  - **Property 10: Dynamic layout adjustment**
-  - **Validates: Requirements 4.3**
-
-- [x] 6. Create command execution and approval system
-
-
-
-
-
-  - Implement CommandExecutor with approval workflow
-  - Add command presentation UI with accept/reject buttons
-  - Create safe command execution with output capture
-  - Implement working directory management and error handling
-  - _Requirements: 4.2, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5_
-
-- [ ]* 6.1 Write property test for command approval workflow
-  - **Property 8: Command approval workflow**
-  - **Validates: Requirements 4.2, 4.4, 5.1, 5.2, 5.3, 5.4**
-
-- [ ]* 6.2 Write property test for command rejection handling
-  - **Property 9: Command rejection handling**
-  - **Validates: Requirements 4.5**
-
-- [ ]* 6.3 Write property test for error reporting completeness
-  - **Property 11: Error reporting completeness**
-  - **Validates: Requirements 5.5**
-
-
-- [x] 7. Build spec-driven development engine
-
-
-
-
-  - Implement RequirementsManager for EARS-compliant document creation
-  - Create DesignManager for design document generation from requirements
-  - Add TasksManager for actionable task list creation
-  - Implement workflow state transitions and phase management
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
-
-- [ ]* 7.1 Write property test for spec workflow progression
-  - **Property 5: Spec workflow progression**
-  - **Validates: Requirements 3.1, 3.2, 3.3**
-
-- [ ]* 7.2 Write property test for spec navigation state preservation
-  - **Property 6: Spec navigation state preservation**
-  - **Validates: Requirements 3.4, 3.5**
-
-- [x] 8. Implement chat management and agent integration
-
-
-
-
-
-  - Create ChatManager for conversation history and context
-  - Add message formatting and display logic
-  - Implement agent response parsing and rendering
-  - Create conversation threading and context management
-  - _Requirements: 2.4, 7.4_
-
-- [x] 9. Add file operations monitoring
-
-
-
-
-
-
-  - Implement FileOperationsManager for read/write operation tracking
-  - Create progress monitoring and visual feedback systems
-  - Add file system permission handling and error recovery
-  - Integrate with Neovim buffer management
-  - _Requirements: 4.1, 7.3_
-
-- [x] 10. Create configuration and persistence system
-
-
-
-
-  - Implement Settings struct with user customization options
-  - Add configuration file management in standard Neovim locations
-  - Create state persistence for conversations and window layouts
-  - Implement configuration migration and update handling
-  - _Requirements: 6.1, 6.3, 6.5_
-
-- [ ]* 10.1 Write property test for configuration persistence
-  - **Property 12: Configuration persistence**
-  - **Validates: Requirements 6.1, 6.3, 6.5**
-
-- [ ] 11. Implement enhanced agent capabilities
-  - Add property-based testing integration for spec workflows
-  - Create task tracking with completion status and dependencies
-  - Implement file tree navigation and context awareness
-  - Add workspace state management and project understanding
+- [ ] 4.4 Implement MCP client for external services
+  - Create MCP client for outbound connections to external services
+  - Handle authentication and permission management
+  - Implement graceful degradation when services unavailable
+  - Add retry logic and error handling for MCP connections
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ]* 11.1 Write property test for enhanced agent capabilities
-  - **Property 13: Enhanced agent capabilities**
+- [ ]* 4.5 Write property test for MCP orchestration layer
+  - **Property 14: MCP service integration**
   - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
-- [ ] 12. Add concurrency and error handling
-  - Implement safe concurrent operation handling
-  - Create comprehensive error types and recovery mechanisms
-  - Add crash recovery with conversation history preservation
-  - Implement graceful degradation for optional features
-  - _Requirements: 8.2, 8.4_
+- [ ] 5. Migrate existing spec-driven development features
+  - Port existing spec workflow logic to MCP orchestration layer
+  - Update requirements, design, and task management for new architecture
+  - Implement property-based testing integration through MCP tools
+  - Migrate existing command execution and approval workflows
+  - Update file operation monitoring for container-based operations
+  - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 5.1, 9.1, 9.2_
 
-- [ ]* 12.1 Write property test for concurrent operation safety
-  - **Property 14: Concurrent operation safety**
-  - **Validates: Requirements 8.2**
+- [ ] 5.1 Port spec workflow engine to container
+  - Migrate existing spec workflow logic to MCP orchestration layer
+  - Update EARS requirements validation for container environment
+  - Port design document generation and correctness properties
+  - Migrate task management and completion tracking
+  - _Requirements: 3.1, 3.2, 3.3, 9.1, 9.2_
 
-- [ ]* 12.2 Write property test for crash recovery
-  - **Property 15: Crash recovery**
-  - **Validates: Requirements 8.4**
+- [ ] 5.2 Implement command execution through container
+  - Port command approval workflow to work through MCP orchestration layer
+  - Update command presentation and execution via gRPC
+  - Implement output capture and delivery through container
+  - Add error handling for container-based command execution
+  - _Requirements: 4.2, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 13. Create Neovim plugin integration files
+- [ ] 5.3 Update file operation monitoring
+  - Port file operation visualization to work with container operations
+  - Update progress indicators for container-based file operations
+  - Implement real-time operation feedback through gRPC
+  - Add visual blocks for container operation status
+  - _Requirements: 4.1, 4.3_
 
+- [ ]* 5.4 Write property test for migrated spec workflows
+  - **Property 6: Spec workflow progression**
+  - **Property 7: Spec navigation state preservation**
+  - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 
-  - Write nvim-spec-agent.vim for plugin registration
-  - Create Lua configuration interface for user customization
-  - Add keybinding setup and command registration
-  - Implement plugin manager compatibility (lazy.nvim, packer, vim-plug)
-  - _Requirements: 1.1, 1.4_
+- [ ] 6. Implement enhanced context provision system
+  - Complete implementation of Neovim context gathering for MCP orchestration layer
+  - Add intelligent context filtering and prioritization
+  - Implement context caching and incremental updates
+  - Add context sanitization for security and privacy
+  - Optimize context transmission for performance
+  - _Requirements: 9.3, 9.4, 9.5, 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [x] 14. Fix and stabilize basic dual-window system
+- [ ] 6.1 Implement comprehensive file context gathering
+  - Gather current buffer contents, cursor position, and file metadata
+  - Collect file system paths, open files, and project structure
+  - Add recent edits, undo/redo history, and change tracking
+  - Implement incremental context updates for performance
+  - _Requirements: 11.1, 11.2, 11.3_
 
+- [ ] 6.2 Implement debugging context collection
+  - Collect compiler/linter output from LSP and plugins
+  - Gather runtime errors and stack traces
+  - Add diagnostic information aggregation
+  - Implement context sanitization and structuring
+  - _Requirements: 11.4, 11.5_
 
+- [ ]* 6.3 Write property test for context provision
+  - **Property 16: Enhanced agent capabilities with context provision**
+  - **Validates: Requirements 9.3, 9.4, 9.5, 11.1, 11.2, 11.3, 11.4, 11.5**
 
+- [ ] 7. Implement prebuilt binary distribution system
+  - Update build system for prebuilt binary generation
+  - Create CI/CD pipeline for multi-platform binary builds
+  - Implement binary detection and validation in Lua frontend
+  - Update plugin manager integration for prebuilt binaries
+  - Add binary update and version management
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - Debug and fix current window creation issues preventing <leader>af from working
-  - Ensure reliable window spawning and focus management
-  - Fix any Lua/Rust communication errors blocking basic functionality
-  - Verify keybinding registration and conflict resolution
-  - Test window cleanup and proper state management
-  - _Requirements: 2.1, 2.2, 2.5_
+- [ ] 7.1 Create multi-platform build system
+  - Set up CI/CD for Linux, macOS, and Windows binary builds
+  - Implement binary packaging and distribution to plugin-dist branch
+  - Add binary signing and verification for security
+  - Create automated release process
+  - _Requirements: 1.1, 1.2, 1.4_
 
-- [ ] 14.1 Implement proper logging system
-  - Create configurable logging system to replace vim.notify calls
-  - Add log levels (DEBUG, INFO, WARN, ERROR) with user-configurable filtering
-  - Implement silent mode for production use
-  - Add optional log file output for debugging
-  - Replace all TODO logging comments with proper logging calls
-  - _Requirements: 5.5, 7.5_
+- [ ] 7.2 Update plugin manager integration
+  - Update lazy.nvim configuration for prebuilt binary installation
+  - Add support for packer.nvim and vim-plug
+  - Implement binary validation and health checks
+  - Add installation troubleshooting and diagnostics
+  - _Requirements: 1.3, 1.4, 1.5_
 
-- [ ] 15. Add comprehensive error handling and logging
-  - Implement structured logging with configurable levels
-  - Create user-friendly error messages and recovery suggestions
-  - Add diagnostic information collection for troubleshooting
-  - Implement error reporting and feedback mechanisms
-  - _Requirements: 5.5, 7.5_
+- [ ]* 7.3 Write property test for prebuilt binary system
+  - **Property 1: Plugin installation with prebuilt binaries**
+  - **Property 2: Plugin loading and registration**
+  - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
 
-- [ ] 16. Checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+- [ ] 8. Implement performance optimization and error handling
+  - Optimize gRPC communication for low latency
+  - Implement efficient memory management across all layers
+  - Add comprehensive error handling and recovery mechanisms
+  - Implement performance monitoring and diagnostics
+  - Add graceful degradation for component failures
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 17. Create installation and setup documentation
-  - Write installation instructions for different plugin managers
-  - Create configuration examples and customization guide
-  - Add troubleshooting section for common issues
-  - Document GNU Stow integration and dotfiles workflow
-  - _Requirements: 1.1, 6.2_
+- [ ] 8.1 Optimize communication performance
+  - Implement efficient gRPC message serialization
+  - Add connection pooling and reuse
+  - Optimize context data transmission
+  - Implement streaming for large operations
+  - _Requirements: 10.1, 10.5_
 
-- [ ]* 17.1 Write unit tests for GNU Stow compatibility
-  - Test plugin functionality in stowed directory structures
-  - Verify configuration persistence across stow operations
-  - _Requirements: 6.2_
+- [ ] 8.2 Implement comprehensive error handling
+  - Add error recovery for container failures
+  - Implement graceful degradation for MCP service failures
+  - Add conversation history preservation during crashes
+  - Implement diagnostic information collection
+  - _Requirements: 10.4, 6.5, 7.5_
 
-- [ ] 18. Final integration and polish
-  - Integrate all components into cohesive plugin experience
-  - Add performance optimizations and memory management
+- [ ]* 8.3 Write property test for performance and reliability
+  - **Property 17: Concurrent operation safety and performance**
+  - **Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5**
+
+- [ ] 9. Integration testing and validation
+  - Create comprehensive integration tests for three-layer architecture
+  - Test end-to-end workflows with different LLM providers
+  - Validate MCP service integration with external tools
+  - Test plugin installation across different environments
+  - Perform load testing and performance validation
+  - _Requirements: All requirements validation_
+
+- [ ] 9.1 Create end-to-end integration tests
+  - Test complete workflows from Neovim to container and back
+  - Validate spec-driven development workflows
+  - Test command execution and approval workflows
+  - Validate context gathering and provision
+  - _Requirements: 3.1, 4.2, 5.1, 11.1_
+
+- [ ] 9.2 Test LLM provider integrations
+  - Test Ollama integration with local models
+  - Validate OpenAI API integration with secure key management
+  - Test Anthropic API integration
+  - Validate provider switching and fallback mechanisms
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
+
+- [ ] 9.3 Validate MCP service integration
+  - Test external MCP service connections
+  - Validate authentication and permission management
+  - Test graceful degradation when services unavailable
+  - Validate retry logic and error handling
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+
+- [ ] 10. Final integration and documentation
+  - Complete final integration of all components
+  - Create comprehensive user documentation
+  - Add troubleshooting guides and FAQ
   - Implement final UI polish and user experience improvements
-  - Create comprehensive integration tests
-  - _Requirements: 8.1, 8.3, 8.5_
+  - Create installation and configuration guides
+  - _Requirements: 1.1, 2.1, 2.2_
 
-- [ ] 19. Final Checkpoint - Ensure all tests pass
+- [ ] 10.1 Complete final integration
+  - Integrate all components into cohesive plugin experience
+  - Add final performance optimizations
+  - Implement final UI polish and user experience improvements
+  - Create comprehensive integration validation
+  - _Requirements: 2.1, 2.2, 10.1_
+
+- [ ] 10.2 Create comprehensive documentation
+  - Write installation instructions for different plugin managers
+  - Create LLM provider configuration guides
+  - Add MCP service integration documentation
+  - Create troubleshooting guides and FAQ
+  - _Requirements: 1.1, 12.1, 7.1_
+
+- [ ] 11. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

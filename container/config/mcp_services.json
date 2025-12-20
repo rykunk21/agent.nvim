@@ -1,0 +1,54 @@
+{
+  "services": {
+    "filesystem": {
+      "enabled": true,
+      "type": "mcp_filesystem",
+      "config": {
+        "endpoint": "http://localhost:8001",
+        "auth_type": "none",
+        "capabilities": ["read", "write", "list", "search"],
+        "timeout": 10,
+        "max_retries": 2
+      }
+    },
+    "web_search": {
+      "enabled": false,
+      "type": "mcp_web_search",
+      "config": {
+        "endpoint": "http://localhost:8002",
+        "auth_type": "api_key",
+        "auth_key_env": "WEB_SEARCH_API_KEY",
+        "capabilities": ["search", "fetch"],
+        "timeout": 15,
+        "max_retries": 2
+      }
+    },
+    "code_analysis": {
+      "enabled": false,
+      "type": "mcp_code_analysis",
+      "config": {
+        "endpoint": "http://localhost:8003",
+        "auth_type": "none",
+        "capabilities": ["analyze", "lint", "format"],
+        "timeout": 20,
+        "max_retries": 1
+      }
+    }
+  },
+  "service_discovery": {
+    "enabled": false,
+    "registry_url": null,
+    "refresh_interval": 300
+  },
+  "retry_policy": {
+    "max_attempts": 3,
+    "backoff_multiplier": 2,
+    "max_backoff": 30
+  },
+  "circuit_breaker": {
+    "enabled": true,
+    "failure_threshold": 5,
+    "recovery_timeout": 60,
+    "half_open_requests": 3
+  }
+}

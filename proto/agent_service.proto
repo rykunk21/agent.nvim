@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package agent;
+
+service AgentService {
+  // Send a request to the agent
+  rpc SendRequest(AgentRequest) returns (AgentResponse);
+  
+  // Stream responses from the agent
+  rpc StreamResponses(StreamRequest) returns (stream AgentResponse);
+  
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message AgentRequest {
+  string id = 1;
+  string request_type = 2;
+  bytes payload = 3;
+  NeovimContext context = 4;
+}
+
+message AgentResponse {
+  string id = 1;
+  bool success = 2;
+  bytes payload = 3;
+  string error = 4;
+}
+
+message StreamRequest {
+  string conversation_id = 1;
+}
+
+message NeovimContext {
+  BufferInfo current_buffer = 1;
+  CursorPosition cursor_position = 2;
+  repeated FileInfo open_files = 3;
+  ProjectStructure project_structure = 4;
+  repeated EditInfo recent_edits = 5;
+  repeated DiagnosticInfo diagnostics = 6;
+}
+
+message BufferInfo {
+  string path = 1;
+  string content = 2;
+  string filetype = 3;
+  bool modified = 4;
+}
+
+message CursorPosition {
+  uint32 line = 1;
+  uint32 column = 2;
+}
+
+message FileInfo {
+  string path = 1;
+  string filetype = 2;
+  bool modified = 3;
+}
+
+message ProjectStructure {
+  string root_path = 1;
+  repeated string file_paths = 2;
+  repeated string directories = 3;
+}
+
+message EditInfo {
+  string file_path = 1;
+  string change_type = 2;
+  int64 timestamp = 3;
+}
+
+message DiagnosticInfo {
+  string file_path = 1;
+  uint32 line = 2;
+  uint32 column = 3;
+  string severity = 4;
+  string message = 5;
+}
+
+message HealthCheckRequest {
+}
+
+message HealthCheckResponse {
+  string status = 1;
+  int64 uptime_seconds = 2;
+  string version = 3;
+}
