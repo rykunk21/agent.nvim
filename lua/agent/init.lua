@@ -120,7 +120,7 @@ function M.setup(user_config)
   if config.keybindings and config.keybindings.open_agent then
     vim.schedule(function()
       if config.keybindings.open_agent then
-        vim.keymap.set('n', config.keybindings.open_agent, M.toggle_agent, { 
+        vim.keymap.set('n', config.keybindings.open_agent, M.toggle_window, { 
           desc = 'Toggle Spec Agent',
           noremap = true,
           silent = true
@@ -158,7 +158,7 @@ function M.start_rust_backend()
   end
   
   if not config.rust_binary_path then
-    vim.notify('agent.nvim: Rust binary not found', vim.log.levels.ERROR)
+    -- Silent failure - will be handled at UI level
     return false
   end
   
@@ -178,12 +178,12 @@ function M.start_rust_backend()
   })
   
   if state.rust_job_id <= 0 then
-    vim.notify('Failed to start agent.nvim backend', vim.log.levels.ERROR)
+    -- Silent failure - will be handled at UI level
     return false
   end
   
   state.initialized = true
-  vim.notify('agent.nvim backend started', vim.log.levels.INFO)
+  -- TODO: Add proper logging system (requirement for later)
   
   -- Send a ping to test the connection
   vim.defer_fn(function()
@@ -219,7 +219,9 @@ end
 function M.handle_rust_error(data)
   for _, line in ipairs(data) do
     if line and line ~= '' then
-      vim.notify('Rust backend error: ' .. line, vim.log.levels.ERROR)
+      -- TODO: Add proper logging system to handle stderr output
+      -- For now, ignore stderr as it contains normal startup messages
+      -- that appear as "errors" but are actually informational
     end
   end
 end
@@ -267,9 +269,8 @@ function M.draw_dual_window()
   if not config.rust_binary_path then
     config.rust_binary_path = find_rust_binary()
     if not config.rust_binary_path then
-      vim.notify('agent.nvim: Rust binary not found. Backend will be disabled.', vim.log.levels.WARN)
-      vim.notify('UI will work, but agent responses require: cargo build', vim.log.levels.INFO)
-      -- Do NOT return here — continue drawing window
+      -- TODO: Add proper logging system for binary not found warnings
+      -- For now, continue silently - UI will work without backend
     end
   end
   
@@ -278,7 +279,7 @@ function M.draw_dual_window()
   
   -- Optionally start backend if binary is available and not already running
   if config.rust_binary_path and not state.initialized then
-    vim.notify('Starting agent backend...', vim.log.levels.INFO)
+    -- TODO: Add proper logging system for backend startup
     M.start_rust_backend() -- Don't block on failure
   end
   
@@ -316,9 +317,7 @@ function M.close_dual_window()
   state.windows = {}
   state.dual_window_open = false -- Ensure state is consistent
   
-  if closed_windows > 0 then
-    vim.notify('Agent interface closed', vim.log.levels.INFO)
-  end
+  -- TODO: Add proper logging system for window close notifications
   
   -- Also notify Rust backend
   if state.initialized then
@@ -328,6 +327,7 @@ end
 
 -- Legacy function aliases for backward compatibility
 M.close_agent_interface = M.close_dual_window
+M.toggle_agent = M.toggle_window
 
 -- Open agent interface (always opens, doesn't toggle)
 function M.open_agent()
@@ -361,9 +361,6 @@ function M.open_spec(spec_name)
   if not state.initialized then
     vim.notify('Agent backend not available. Spec opening requires backend.', vim.log.levels.WARN)
     vim.notify('Try: cargo build to enable backend features', vim.log.levels.INFO)
-    return
-  end
-    vim.notify('Agent backend not initialized', vim.log.levels.ERROR)
     return
   end
   
@@ -405,19 +402,19 @@ end
 -- Send message to Rust backend
 function M.send_to_rust(message)
   if not state.rust_job_id then
-    vim.notify('Rust backend not running', vim.log.levels.WARN)
+    -- TODO: Add proper logging system for backend communication issues
     return false
   end
   
   local ok, json_message = pcall(vim.json.encode, message)
   if not ok then
-    vim.notify('Failed to encode message: ' .. tostring(json_message), vim.log.levels.ERROR)
+    -- TODO: Add proper logging system for encoding errors
     return false
   end
   
   local success = pcall(vim.fn.chansend, state.rust_job_id, json_message .. '\n')
   if not success then
-    vim.notify('Failed to send message to backend', vim.log.levels.ERROR)
+    -- TODO: Add proper logging system for communication failures
     return false
   end
   

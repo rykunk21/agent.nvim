@@ -217,6 +217,14 @@
   - Test window cleanup and proper state management
   - _Requirements: 2.1, 2.2, 2.5_
 
+- [ ] 14.1 Implement proper logging system
+  - Create configurable logging system to replace vim.notify calls
+  - Add log levels (DEBUG, INFO, WARN, ERROR) with user-configurable filtering
+  - Implement silent mode for production use
+  - Add optional log file output for debugging
+  - Replace all TODO logging comments with proper logging calls
+  - _Requirements: 5.5, 7.5_
+
 - [ ] 15. Add comprehensive error handling and logging
   - Implement structured logging with configurable levels
   - Create user-friendly error messages and recovery suggestions
