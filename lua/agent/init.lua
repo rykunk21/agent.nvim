@@ -8,7 +8,6 @@ local state = {
   windows = {},
   current_spec = nil,
   chat_history = {},
-  dual_window_open = false, -- Track window state
 }
 
 -- Configuration
@@ -21,7 +20,12 @@ local default_config = {
     window_width_ratio = 0.8,
     window_height_ratio = 0.6,
   },
-  -- keybindings removed from default - use lazy.nvim keys instead
+  keybindings = {
+    open_agent = '<leader>af',
+    new_spec = '<leader>sn',
+    open_spec = '<leader>so',
+    close_agent = '<Esc>',
+  }
 }
 
 local config = default_config
@@ -98,52 +102,32 @@ function M.setup(user_config)
     end
   end
   
-  -- Register commands (no keybindings - let user handle that)
-  vim.api.nvim_create_user_command('AgentToggle', function()
-    M.toggle_window()
-  end, { desc = 'Toggle Agent Interface' })
-  
-  vim.api.nvim_create_user_command('AgentOpen', function()
-    M.open_agent()
-  end, { desc = 'Open Agent Interface' })
-  
-  vim.api.nvim_create_user_command('AgentClose', function()
-    M.close_dual_window()
-  end, { desc = 'Close Agent Interface' })
-  
-  vim.api.nvim_create_user_command('AgentStatus', function()
-    M.show_status()
-  end, { desc = 'Show Agent Status' })
-  
-  -- Only set up keybindings if explicitly configured (for backward compatibility)
-  -- Most users should use lazy.nvim keys instead
-  if config.keybindings and config.keybindings.open_agent then
-    vim.schedule(function()
-      if config.keybindings.open_agent then
-        vim.keymap.set('n', config.keybindings.open_agent, M.toggle_window, { 
-          desc = 'Toggle Spec Agent',
-          noremap = true,
-          silent = true
-        })
-      end
-      
-      if config.keybindings.new_spec then
-        vim.keymap.set('n', config.keybindings.new_spec, M.new_spec, { 
-          desc = 'New Spec',
-          noremap = true,
-          silent = true
-        })
-      end
-      
-      if config.keybindings.open_spec then
-        vim.keymap.set('n', config.keybindings.open_spec, M.open_spec, { 
-          desc = 'Open Spec',
-          noremap = true,
-          silent = true
-        })
-      end
-    end)
-  end
+  -- ALWAYS set up keybindings, regardless of binary status
+  vim.schedule(function()
+    if config.keybindings.open_agent then
+      vim.keymap.set('n', config.keybindings.open_agent, M.toggle_agent, { 
+        desc = 'Toggle Spec Agent',
+        noremap = true,
+        silent = true
+      })
+    end
+    
+    if config.keybindings.new_spec then
+      vim.keymap.set('n', config.keybindings.new_spec, M.new_spec, { 
+        desc = 'New Spec',
+        noremap = true,
+        silent = true
+      })
+    end
+    
+    if config.keybindings.open_spec then
+      vim.keymap.set('n', config.keybindings.open_spec, M.open_spec, { 
+        desc = 'Open Spec',
+        noremap = true,
+        silent = true
+      })
+    end
+  end)
   
   -- Auto-start if configured and binary is available
   if config.auto_start and config.rust_binary_path then
@@ -158,7 +142,7 @@ function M.start_rust_backend()
   end
   
   if not config.rust_binary_path then
-    -- Silent failure - will be handled at UI level
+    vim.notify('agent.nvim: Rust binary not found', vim.log.levels.ERROR)
     return false
   end
   
@@ -178,12 +162,12 @@ function M.start_rust_backend()
   })
   
   if state.rust_job_id <= 0 then
-    -- Silent failure - will be handled at UI level
+    vim.notify('Failed to start agent.nvim backend', vim.log.levels.ERROR)
     return false
   end
   
   state.initialized = true
-  -- TODO: Add proper logging system (requirement for later)
+  vim.notify('agent.nvim backend started', vim.log.levels.INFO)
   
   -- Send a ping to test the connection
   vim.defer_fn(function()
@@ -219,9 +203,7 @@ end
 function M.handle_rust_error(data)
   for _, line in ipairs(data) do
     if line and line ~= '' then
-      -- TODO: Add proper logging system to handle stderr output
-      -- For now, ignore stderr as it contains normal startup messages
-      -- that appear as "errors" but are actually informational
+      vim.notify('Rust backend error: ' .. line, vim.log.levels.ERROR)
     end
   end
 end
@@ -253,95 +235,66 @@ function M.handle_rust_message(message)
   end
 end
 
--- Public toggle function (main interface)
-function M.toggle_window()
-  state.dual_window_open = not state.dual_window_open
-  if state.dual_window_open then
-    M.draw_dual_window()
-  else
-    M.close_dual_window()
+-- Toggle agent interface (open/close)
+function M.toggle_agent()
+  -- Check if interface is already open (check both input and chat windows)
+  local is_open = false
+  
+  if state.windows.input and vim.api.nvim_win_is_valid(state.windows.input.win) then
+    is_open = true
+  elseif state.windows.chat and vim.api.nvim_win_is_valid(state.windows.chat.win) then
+    is_open = true
   end
+  
+  if is_open then
+    -- If open, close the interface
+    M.close_agent_interface()
+    return
+  end
+  
+  -- If not open, open it
+  M.open_agent()
 end
-
--- Internal function to draw the dual window (UI-only, backend-independent)
-function M.draw_dual_window()
-  -- Re-check for binary if not found during setup, but don't block UI
-  if not config.rust_binary_path then
-    config.rust_binary_path = find_rust_binary()
-    if not config.rust_binary_path then
-      -- TODO: Add proper logging system for binary not found warnings
-      -- For now, continue silently - UI will work without backend
-    end
-  end
-  
-  -- Always draw the UI regardless of backend state
-  M.create_dual_window_interface()
-  
-  -- Optionally start backend if binary is available and not already running
-  if config.rust_binary_path and not state.initialized then
-    -- TODO: Add proper logging system for backend startup
-    M.start_rust_backend() -- Don't block on failure
-  end
-  
-  -- Optionally notify backend if it's running
-  if state.initialized then
-    M.send_to_rust({ type = 'open_agent' })
-  end
-  
-  state.dual_window_open = true
-end
-
--- Internal function to close the dual window
-function M.close_dual_window()
-  local closed_windows = 0
-  
-  -- Close chat window
-  if state.windows.chat then
-    if vim.api.nvim_win_is_valid(state.windows.chat.win) then
-      pcall(vim.api.nvim_win_close, state.windows.chat.win, true)
-      closed_windows = closed_windows + 1
-    end
-    state.windows.chat = nil
-  end
-  
-  -- Close input window
-  if state.windows.input then
-    if vim.api.nvim_win_is_valid(state.windows.input.win) then
-      pcall(vim.api.nvim_win_close, state.windows.input.win, true)
-      closed_windows = closed_windows + 1
-    end
-    state.windows.input = nil
-  end
-  
-  -- Clear the entire windows table to ensure clean state
-  state.windows = {}
-  state.dual_window_open = false -- Ensure state is consistent
-  
-  -- TODO: Add proper logging system for window close notifications
-  
-  -- Also notify Rust backend
-  if state.initialized then
-    M.send_to_rust({ type = 'close_agent' })
-  end
-end
-
--- Legacy function aliases for backward compatibility
-M.close_agent_interface = M.close_dual_window
-M.toggle_agent = M.toggle_window
 
 -- Open agent interface (always opens, doesn't toggle)
 function M.open_agent()
-  if not state.dual_window_open then
-    state.dual_window_open = true
-    M.draw_dual_window()
+  -- Re-check for binary if not found during setup
+  if not config.rust_binary_path then
+    config.rust_binary_path = find_rust_binary()
+    if not config.rust_binary_path then
+      vim.notify('agent.nvim: Rust binary still not found', vim.log.levels.ERROR)
+      vim.notify('Try building with: cargo build', vim.log.levels.INFO)
+      return
+    end
+  end
+  
+  -- Ensure backend is running
+  if not state.initialized then
+    vim.notify('Starting agent backend...', vim.log.levels.INFO)
+    if not M.start_rust_backend() then
+      vim.notify('Failed to start agent backend', vim.log.levels.ERROR)
+      return
+    end
+    
+    -- Wait a moment for backend to initialize
+    vim.defer_fn(function()
+      M.create_dual_window_interface()
+    end, 200)
+  else
+    -- Create the dual window interface directly
+    M.create_dual_window_interface()
+  end
+  
+  -- Also notify Rust backend
+  if state.initialized then
+    M.send_to_rust({ type = 'open_agent' })
   end
 end
 
 -- Create new spec
 function M.new_spec(feature_name)
   if not state.initialized then
-    vim.notify('Agent backend not available. Spec creation requires backend.', vim.log.levels.WARN)
-    vim.notify('Try: cargo build to enable backend features', vim.log.levels.INFO)
+    vim.notify('Agent backend not initialized', vim.log.levels.ERROR)
     return
   end
   
@@ -359,8 +312,7 @@ end
 -- Open existing spec
 function M.open_spec(spec_name)
   if not state.initialized then
-    vim.notify('Agent backend not available. Spec opening requires backend.', vim.log.levels.WARN)
-    vim.notify('Try: cargo build to enable backend features', vim.log.levels.INFO)
+    vim.notify('Agent backend not initialized', vim.log.levels.ERROR)
     return
   end
   
@@ -402,19 +354,19 @@ end
 -- Send message to Rust backend
 function M.send_to_rust(message)
   if not state.rust_job_id then
-    -- TODO: Add proper logging system for backend communication issues
+    vim.notify('Rust backend not running', vim.log.levels.WARN)
     return false
   end
   
   local ok, json_message = pcall(vim.json.encode, message)
   if not ok then
-    -- TODO: Add proper logging system for encoding errors
+    vim.notify('Failed to encode message: ' .. tostring(json_message), vim.log.levels.ERROR)
     return false
   end
   
   local success = pcall(vim.fn.chansend, state.rust_job_id, json_message .. '\n')
   if not success then
-    -- TODO: Add proper logging system for communication failures
+    vim.notify('Failed to send message to backend', vim.log.levels.ERROR)
     return false
   end
   
@@ -556,6 +508,41 @@ function M.create_dual_window_interface()
   end
 end
 
+-- Close agent interface
+function M.close_agent_interface()
+  local closed_windows = 0
+  
+  -- Close chat window
+  if state.windows.chat then
+    if vim.api.nvim_win_is_valid(state.windows.chat.win) then
+      pcall(vim.api.nvim_win_close, state.windows.chat.win, true)
+      closed_windows = closed_windows + 1
+    end
+    state.windows.chat = nil
+  end
+  
+  -- Close input window
+  if state.windows.input then
+    if vim.api.nvim_win_is_valid(state.windows.input.win) then
+      pcall(vim.api.nvim_win_close, state.windows.input.win, true)
+      closed_windows = closed_windows + 1
+    end
+    state.windows.input = nil
+  end
+  
+  -- Clear the entire windows table to ensure clean state
+  state.windows = {}
+  
+  if closed_windows > 0 then
+    vim.notify('Agent interface closed', vim.log.levels.INFO)
+  end
+  
+  -- Also notify Rust backend
+  if state.initialized then
+    M.send_to_rust({ type = 'close_agent' })
+  end
+end
+
 -- Send message from input window
 function M.send_message()
   if not state.windows.input or not vim.api.nvim_buf_is_valid(state.windows.input.buf) then
@@ -581,17 +568,11 @@ function M.send_message()
   table.insert(state.chat_history, '**You:** ' .. message)
   table.insert(state.chat_history, '')
   
-  -- Send to Rust backend (if available)
-  if state.initialized then
-    M.send_to_rust({
-      type = 'chat_message',
-      data = { message = message }
-    })
-  else
-    -- Backend not available, show a helpful message
-    table.insert(state.chat_history, '**System:** Backend not available. Start with: cargo build')
-    table.insert(state.chat_history, '')
-  end
+  -- Send to Rust backend
+  M.send_to_rust({
+    type = 'chat_message',
+    data = { message = message }
+  })
   
   -- Update chat window if it exists
   if state.windows.chat and vim.api.nvim_buf_is_valid(state.windows.chat.buf) then
