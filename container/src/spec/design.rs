@@ -1,0 +1,352 @@
+use anyhow::Result;
+use log::info;
+use serde::{Deserialize, Serialize};
+use crate::spec::requirements::{AcceptanceCriterion, RequirementsManager};
+
+/// Correctness property type
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PropertyType {
+    RoundTrip,
+    Invariant,
+    Idempotence,
+    ErrorCondition,
+    Confluence,
+    ModelBased,
+    Metamorphic,
+}
+
+/// Correctness property structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CorrectnessProperty {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub property_type: PropertyType,
+    pub requirements_refs: Vec<String>,
+}
+
+/// Design document validation result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DesignValidation {
+    pub is_valid: bool,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
+/// Design manager for design document generation and validation
+pub struct DesignManager;
+
+impl DesignManager {
+    /// Generate design document template
+    pub fn generate_design_template(feature_name: &str) -> String {
+        format!(
+            r#"# Design Document: {}
+
+## Overview
+
+[Feature overview and purpose]
+
+## Architecture
+
+[High-level architecture description]
+
+## Components and Interfaces
+
+[Component descriptions and interfaces]
+
+## Data Models
+
+[Data structures and models]
+
+## Correctness Properties
+
+*A property is a characteristic or behavior that should hold true across all valid executions of a system.*
+
+Property 1: [Property description]
+*For any* [input domain], [expected behavior]
+**Validates: Requirements X.Y**
+
+## Error Handling
+
+[Error handling strategies]
+
+## Testing Strategy
+
+[Testing approach including unit and property-based tests]
+"#,
+            feature_name
+        )
+    }
+
+    /// Generate design document from requirements analysis
+    pub fn generate_design_from_requirements(feature_name: &str, requirements_content: &str) -> String {
+        let criteria = RequirementsManager::extract_acceptance_criteria(requirements_content);
+
+        let mut design_content = format!(
+            r#"# Design Document: {}
+
+## Overview
+
+This design document outlines the architecture and implementation approach for {}.
+
+## Architecture
+
+[Architecture will be defined based on requirements analysis]
+
+## Components and Interfaces
+
+[Components will be identified from requirements]
+
+## Data Models
+
+[Data models will be derived from functional requirements]
+
+## Correctness Properties
+
+*A property is a characteristic or behavior that should hold true across all valid executions of a system.*
+
+"#,
+            feature_name, feature_name
+        );
+
+        // Generate correctness properties from acceptance criteria
+        let properties = Self::generate_correctness_properties(&criteria);
+        for (i, property) in properties.iter().enumerate() {
+            design_content.push_str(&format!(
+                "Property {}: {}\n*For any* {}\n**Validates: Requirements {}**\n\n",
+                i + 1,
+                property.name,
+                property.description,
+                property.requirements_refs.join(", ")
+            ));
+        }
+
+        design_content.push_str(
+            r#"## Error Handling
+
+[Error handling strategies based on requirements]
+
+## Testing Strategy
+
+### Dual Testing Approach
+
+The implementation will use both unit testing and property-based testing:
+
+**Unit Testing**
+- Specific examples that demonstrate correct behavior
+- Edge cases and error conditions
+- Integration points between components
+
+**Property-Based Testing**
+- Universal properties that should hold across all inputs
+- Each correctness property will be implemented as a property-based test
+- Minimum 100 iterations per property test
+- Tests will be tagged with property references
+
+**Testing Framework**
+- Unit tests using standard testing framework
+- Property-based tests using appropriate PBT library
+- Each property test tagged with: **Feature: {}, Property N: [property_text]**
+"#
+        );
+
+        design_content
+    }
+
+    /// Generate correctness properties from acceptance criteria
+    pub fn generate_correctness_properties(criteria: &[AcceptanceCriterion]) -> Vec<CorrectnessProperty> {
+        let mut properties = Vec::new();
+
+        for criterion in criteria {
+            // Analyze criterion text to determine property type
+            let property_type = Self::determine_property_type(&criterion.text);
+
+            let property = CorrectnessProperty {
+                id: format!("property_{}", criterion.id.replace(".", "_")),
+                name: Self::generate_property_name(&criterion.text),
+                description: Self::generate_property_description(&criterion.text),
+                property_type,
+                requirements_refs: vec![criterion.id.clone()],
+            };
+
+            properties.push(property);
+        }
+
+        properties
+    }
+
+    /// Determine property type from criterion text
+    fn determine_property_type(criterion_text: &str) -> PropertyType {
+        let text_lower = criterion_text.to_lowercase();
+
+        if text_lower.contains("round") && text_lower.contains("trip") {
+            PropertyType::RoundTrip
+        } else if text_lower.contains("invariant") || text_lower.contains("preserve") {
+            PropertyType::Invariant
+        } else if text_lower.contains("idempotent") || text_lower.contains("same result") {
+            PropertyType::Idempotence
+        } else if text_lower.contains("error") || text_lower.contains("fail") {
+            PropertyType::ErrorCondition
+        } else if text_lower.contains("order") && text_lower.contains("independent") {
+            PropertyType::Confluence
+        } else if text_lower.contains("model") || text_lower.contains("reference") {
+            PropertyType::ModelBased
+        } else {
+            PropertyType::Metamorphic
+        }
+    }
+
+    /// Generate property name from criterion
+    fn generate_property_name(criterion_text: &str) -> String {
+        // Extract key concepts from the criterion
+        let words: Vec<&str> = criterion_text.split_whitespace().collect();
+        let mut key_words = Vec::new();
+
+        for word in words {
+            let clean_word = word.trim_matches(|c: char| !c.is_alphabetic()).to_lowercase();
+            if clean_word.len() > 3 && !["when", "then", "shall", "the", "system"].contains(&clean_word.as_str()) {
+                key_words.push(clean_word);
+                if key_words.len() >= 3 {
+                    break;
+                }
+            }
+        }
+
+        if key_words.is_empty() {
+            "Generated property".to_string()
+        } else {
+            key_words.join(" ")
+        }
+    }
+
+    /// Generate property description from criterion
+    fn generate_property_description(criterion_text: &str) -> String {
+        // Convert EARS format to property format
+        let text = criterion_text.replace("WHEN", "when")
+            .replace("THEN", "then")
+            .replace("THE", "the")
+            .replace("SHALL", "should");
+
+        format!("Property derived from: {}", text)
+    }
+
+    /// Extract correctness properties from design document content
+    pub fn extract_correctness_properties(content: &str) -> Vec<CorrectnessProperty> {
+        let mut properties = Vec::new();
+        let lines: Vec<&str> = content.lines().collect();
+
+        let mut in_properties_section = false;
+        let mut current_property: Option<CorrectnessProperty> = None;
+
+        for line in lines {
+            if line.starts_with("## Correctness Properties") {
+                in_properties_section = true;
+                continue;
+            }
+
+            if in_properties_section && line.starts_with("## ") {
+                // End of properties section
+                if let Some(property) = current_property.take() {
+                    properties.push(property);
+                }
+                break;
+            }
+
+            if in_properties_section {
+                if line.starts_with("Property ") && line.contains(":") {
+                    // Save previous property
+                    if let Some(property) = current_property.take() {
+                        properties.push(property);
+                    }
+
+                    // Start new property
+                    let parts: Vec<&str> = line.splitn(2, ':').collect();
+                    if parts.len() == 2 {
+                        let property_id = parts[0].trim().replace(" ", "_").to_lowercase();
+                        let property_name = parts[1].trim().to_string();
+
+                        current_property = Some(CorrectnessProperty {
+                            id: property_id,
+                            name: property_name,
+                            description: String::new(),
+                            property_type: PropertyType::Metamorphic,
+                            requirements_refs: Vec::new(),
+                        });
+                    }
+                }
+
+                if let Some(ref mut property) = current_property {
+                    if line.starts_with("*For any*") {
+                        property.description = line.to_string();
+                    }
+
+                    if line.starts_with("**Validates: Requirements") {
+                        let refs_part = line.trim_start_matches("**Validates: Requirements")
+                            .trim_end_matches("**")
+                            .trim();
+                        property.requirements_refs = refs_part.split(',')
+                            .map(|s| s.trim().to_string())
+                            .collect();
+                    }
+                }
+            }
+        }
+
+        // Don't forget the last property
+        if let Some(property) = current_property {
+            properties.push(property);
+        }
+
+        properties
+    }
+
+    /// Validate correctness properties format
+    pub fn validate_property_format(property: &str) -> bool {
+        property.contains("*For any*") && property.contains("**Validates: Requirements")
+    }
+
+    /// Validate design document structure
+    pub fn validate_document(content: &str) -> DesignValidation {
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+
+        // Check for required sections
+        let required_sections = [
+            "## Overview",
+            "## Architecture",
+            "## Components and Interfaces",
+            "## Data Models",
+            "## Correctness Properties",
+            "## Error Handling",
+            "## Testing Strategy"
+        ];
+
+        for section in required_sections {
+            if !content.contains(section) {
+                errors.push(format!("Missing required section: {}", section));
+            }
+        }
+
+        // Validate correctness properties
+        let properties = Self::extract_correctness_properties(content);
+        if properties.is_empty() {
+            warnings.push("No correctness properties found".to_string());
+        }
+
+        for property in properties {
+            if property.description.is_empty() {
+                warnings.push(format!("Property '{}' missing description", property.name));
+            }
+
+            if property.requirements_refs.is_empty() {
+                errors.push(format!("Property '{}' missing requirements references", property.name));
+            }
+        }
+
+        DesignValidation {
+            is_valid: errors.is_empty(),
+            errors,
+            warnings,
+        }
+    }
+}

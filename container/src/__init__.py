@@ -1,1 +1,0 @@
-# MCP Orchestration Layer Package

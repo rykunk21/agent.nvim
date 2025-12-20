@@ -1,0 +1,39 @@
+[package]
+name = "mcp-orchestration"
+version = "0.1.0"
+edition = "2021"
+description = "MCP orchestration layer for LLM providers"
+license = "MIT"
+
+[[bin]]
+name = "mcp-orchestration"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+tonic = "0.10"
+tonic-health = "0.10"
+prost = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+log = "0.4"
+env_logger = "0.10"
+reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3"
+async-trait = "0.1"
+tower = "0.4"
+tower-http = { version = "0.4", features = ["trace", "cors"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[dev-dependencies]
+proptest = "1.0"
+tokio-test = "0.4"
+tempfile = "3.0"
+
+[build-dependencies]
+tonic-build = "0.10"

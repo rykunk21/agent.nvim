@@ -1,20 +1,14 @@
-[package]
-name = "agent-nvim"
+[workspace]
+members = ["controller", "container"]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-description = "Enhanced Neovim plugin with spec-driven development capabilities"
 license = "MIT"
 repository = "https://github.com/rykunk21/agent.nvim"
 
-[lib]
-name = "agent_nvim"
-crate-type = ["cdylib", "rlib"]
-
-[[bin]]
-name = "nvim-spec-agent"
-path = "src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 neovim-lib = "0.6"
 tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
@@ -29,10 +23,6 @@ env_logger = "0.10"
 tonic = "0.10"
 tonic-build = "0.10"
 prost = "0.12"
-
-[dev-dependencies]
 proptest = "1.0"
 tokio-test = "0.4"
 tempfile = "3.0"
-
-[build-dependencies]

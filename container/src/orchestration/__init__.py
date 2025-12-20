@@ -1,1 +1,0 @@
-# Orchestration components for MCP and LLM management

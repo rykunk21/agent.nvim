@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Enhanced Neovim Spec Agent Plugin is a three-layer architecture that provides an intelligent agent interface with spec-driven development capabilities. The plugin consists of a Lua frontend for Neovim integration, a Rust controller binary for container management, and a Docker container hosting an MCP orchestration layer that can work with various LLM providers (Ollama, OpenAI, Anthropic). The plugin ships with prebuilt binaries and integrates seamlessly with Neovim's plugin ecosystem while providing advanced development automation features through gRPC communication between all layers.
+The Enhanced Neovim Spec Agent Plugin is a three-layer architecture that provides an intelligent agent interface with spec-driven development capabilities. The plugin consists of a Lua frontend for Neovim integration, a Rust controller binary for container management, and a Docker container hosting a Rust-based MCP orchestration layer that can work with various LLM providers (Ollama, OpenAI, Anthropic). The plugin ships with prebuilt binaries and integrates seamlessly with Neovim's plugin ecosystem while providing advanced development automation features through gRPC communication between all layers.
 
 ## Architecture
 
@@ -99,7 +99,7 @@ Neovim Lua ←→ gRPC ←→ Rust Controller ←→ gRPC ←→ MCP Orchestrati
 - Provides configuration validation and migration
 - Stores settings in standard Neovim configuration locations
 
-### Docker Container (MCP Orchestration Layer)
+### Docker Container (Rust-based MCP Orchestration Layer)
 
 **LLM Provider Manager**
 - Manages connections to different LLM providers (Ollama, OpenAI, Anthropic)
@@ -582,29 +582,38 @@ nvim-spec-agent/
 │           └── settings.lua     # Configuration management
 ├── plugin/                      # Neovim plugin registration
 │   └── agent.vim                # Plugin registration and commands
-├── container/                   # Container image source
-│   ├── Dockerfile
-│   ├── requirements.txt         # Python dependencies for MCP orchestration layer
+├── container/                   # Rust-based MCP orchestration layer container
+│   ├── Cargo.toml               # Rust dependencies for container binary
 │   ├── src/
-│   │   ├── main.py              # Container entry point
-│   │   ├── orchestration/
-│   │   │   ├── __init__.py
-│   │   │   ├── llm_manager.py   # LLM provider management (Ollama/OpenAI/Anthropic)
-│   │   │   ├── mcp_engine.py    # MCP orchestration engine
-│   │   │   └── spec_engine.py   # Spec-driven development engine
-│   │   ├── providers/
-│   │   │   ├── __init__.py
-│   │   │   ├── ollama.py        # Ollama integration
-│   │   │   ├── openai.py        # OpenAI API integration
-│   │   │   └── anthropic.py     # Anthropic API integration
+│   │   ├── main.rs              # Container entry point and gRPC server
+│   │   ├── llm/
+│   │   │   ├── mod.rs
+│   │   │   ├── manager.rs       # LLM provider management (Ollama/OpenAI/Anthropic)
+│   │   │   ├── ollama.rs        # Ollama integration
+│   │   │   ├── openai.rs        # OpenAI API integration
+│   │   │   └── anthropic.rs     # Anthropic API integration
+│   │   ├── mcp/
+│   │   │   ├── mod.rs
+│   │   │   ├── engine.rs        # MCP orchestration engine
+│   │   │   ├── client.rs        # MCP client for external services
+│   │   │   └── protocol.rs      # MCP protocol handling
+│   │   ├── spec/
+│   │   │   ├── mod.rs
+│   │   │   ├── engine.rs        # Spec-driven development engine
+│   │   │   ├── requirements.rs  # Requirements management
+│   │   │   ├── design.rs        # Design document management
+│   │   │   └── tasks.rs         # Task management
 │   │   ├── communication/
-│   │   │   ├── __init__.py
-│   │   │   ├── grpc_server.py   # gRPC server for controller communication
-│   │   │   └── protocol.py      # Message protocol implementation
-│   │   └── mcp/
-│   │       ├── __init__.py
-│   │       ├── client.py        # MCP client for external services
-│   │       └── services.py      # MCP service management
+│   │   │   ├── mod.rs
+│   │   │   ├── grpc.rs          # gRPC server implementation
+│   │   │   └── protocol.rs      # Protocol definitions
+│   │   ├── config/
+│   │   │   ├── mod.rs
+│   │   │   └── settings.rs      # Configuration management
+│   │   └── utils/
+│   │       ├── mod.rs
+│   │       ├── error.rs         # Error types and handling
+│   │       └── logging.rs       # Logging and diagnostics
 │   └── config/
 │       ├── llm_providers.json   # LLM provider configuration
 │       └── mcp_services.json    # MCP service configuration

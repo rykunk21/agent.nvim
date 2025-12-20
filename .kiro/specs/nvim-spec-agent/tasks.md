@@ -100,49 +100,62 @@
   - **Property 15: gRPC communication chain integrity**
   - **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 
-- [ ] 4. Implement MCP orchestration layer container
-  - Create a second source code binary crate that will get containerized with docker
-  - Create Docker container with MCP orchestration capabilities
+- [x] 4. Implement Rust-based MCP orchestration layer container
+  - Create a second Rust binary crate for the MCP orchestration layer
+  - Set up Cargo workspace with container binary as separate crate
+  - Implement Docker build to compile and containerize the Rust binary
   - Implement LLM provider abstraction (Ollama, OpenAI, Anthropic)
   - Create gRPC server for Rust controller communication
   - Implement MCP client for external service connections
   - Add secure API key management for cloud LLM providers
   - _Requirements: 6.2, 7.1, 7.2, 12.1, 12.2, 12.3, 12.4_
 
-- [ ] 4.1 Implement LLM provider manager
-  - Create unified interface for different LLM providers
-  - Implement Ollama integration for local models
-  - Add OpenAI API integration with secure key management
-  - Implement Anthropic API integration
+- [x] 4.1 Set up Rust container binary crate
+  - Create container/Cargo.toml with dependencies (tonic, tokio, serde, etc.)
+  - Create container/src/main.rs as entry point for gRPC server
+  - Set up module structure (llm/, mcp/, spec/, communication/, config/, utils/)
+  - Configure Cargo workspace to include container binary
+  - Update Dockerfile to build Rust binary with multi-stage build
+  - _Requirements: 6.2, 12.1_
+
+- [x] 4.2 Implement LLM provider manager in Rust
+  - Create unified trait-based interface for LLM providers
+  - Implement Ollama provider with HTTP client integration
+  - Add OpenAI provider with secure API key management
+  - Implement Anthropic provider with authentication
   - Add provider switching and fallback mechanisms
+  - Implement health monitoring for all providers
   - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 4.2 Implement MCP orchestration engine
-  - Create MCP orchestration layer that works with any LLM provider
-  - Implement MCP protocol handling and tool discovery
-  - Add MCP session management and state persistence
-  - Route LLM requests through MCP tools and external services
+- [x] 4.3 Implement MCP orchestration engine in Rust
+  - Create MCP orchestration engine with session management
+  - Implement tool discovery and availability tracking
+  - Add tool call extraction and execution routing
+  - Implement context management and state persistence
+  - Support streaming and non-streaming LLM responses
   - _Requirements: 7.1, 7.2, 9.1, 9.2_
 
-- [ ] 4.3 Implement container gRPC server
-  - Create gRPC server for communication with Rust controller
+- [x] 4.4 Implement container gRPC server in Rust
+  - Create gRPC server using tonic framework
+  - Implement request handlers for all request types (chat, spec, commands, files)
   - Handle conversation management and context processing
   - Implement streaming responses for long operations
   - Add health check and status endpoints
   - _Requirements: 8.1, 8.2, 10.5_
 
-- [ ] 4.4 Implement MCP client for external services
-  - Create MCP client for outbound connections to external services
-  - Handle authentication and permission management
-  - Implement graceful degradation when services unavailable
-  - Add retry logic and error handling for MCP connections
+- [x] 4.5 Implement MCP client for external services in Rust
+  - Create HTTP-based MCP client for external service connections
+  - Implement multiple authentication types (API Key, Bearer, Basic, OAuth2)
+  - Add tool discovery from external MCP services
+  - Implement retry logic with exponential backoff
+  - Add graceful degradation when services unavailable
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ]* 4.5 Write property test for MCP orchestration layer
+- [ ]* 4.6 Write property test for MCP orchestration layer
   - **Property 14: MCP service integration**
   - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
-- [ ] 5. Migrate existing spec-driven development features
+- [-] 5. Migrate existing spec-driven development features
   - Port existing spec workflow logic to MCP orchestration layer
   - Update requirements, design, and task management for new architecture
   - Implement property-based testing integration through MCP tools
@@ -150,21 +163,21 @@
   - Update file operation monitoring for container-based operations
   - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 5.1, 9.1, 9.2_
 
-- [ ] 5.1 Port spec workflow engine to container
+- [x] 5.1 Port spec workflow engine to container
   - Migrate existing spec workflow logic to MCP orchestration layer
   - Update EARS requirements validation for container environment
   - Port design document generation and correctness properties
   - Migrate task management and completion tracking
   - _Requirements: 3.1, 3.2, 3.3, 9.1, 9.2_
 
-- [ ] 5.2 Implement command execution through container
+- [x] 5.2 Implement command execution through container
   - Port command approval workflow to work through MCP orchestration layer
   - Update command presentation and execution via gRPC
   - Implement output capture and delivery through container
   - Add error handling for container-based command execution
   - _Requirements: 4.2, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 5.3 Update file operation monitoring
+- [-] 5.3 Update file operation monitoring
   - Port file operation visualization to work with container operations
   - Update progress indicators for container-based file operations
   - Implement real-time operation feedback through gRPC
