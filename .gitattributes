@@ -14,3 +14,6 @@ build.sh text eol=lf executable
 
 # Vim files
 *.vim text eol=lf
+
+# Encode lf for unix
+* text=auto eol=lf
