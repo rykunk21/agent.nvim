@@ -119,36 +119,35 @@ impl CommandExecutor {
     /// Execute an approved command
 
     pub fn execute_command(&mut self, block_id: &str) -> Result<CommandOutput> {
-        // --- Phase 1: mutable borrow just to check approval and extract command ---
-        let approved_command = {
-            let command_block = self
-                .pending_commands
-                .get_mut(block_id)
-                .ok_or_else(|| anyhow::anyhow!("Command block not found: {}", block_id))?;
-
-            if !matches!(command_block.approval_status, ApprovalStatus::Approved) {
-                return Err(anyhow::anyhow!("Command not approved for execution"));
-            }
-
-            command_block.command.clone()
-        }; // mutable borrow ends here
-
-        // --- Phase 2: immutable borrows safe now ---
-        self.validate_command(&approved_command)?;
-        let output = self.execute_command_internal(&approved_command)?;
-
-        // --- Phase 3: re-borrow mutably to update ---
-        let command_block = self.pending_commands.get_mut(block_id).unwrap();
+        // --- Phase 1 and 3 are combined: Borrow mutably once ---
+        let command_block = self
+            .pending_commands
+            .get_mut(block_id)
+            .ok_or_else(|| anyhow::anyhow!("Command block not found: {}", block_id))?;
+    
+        // Check if the command is approved
+        if !matches!(command_block.approval_status, ApprovalStatus::Approved) {
+            return Err(anyhow::anyhow!("Command not approved for execution"));
+        }
+    
+        // --- Phase 2: Validate command ---
+        self.validate_command(&command_block.command)?;
+    
+        // Execute the command
+        let output = self.execute_command_internal(command_block)?;
+    
+        // --- Update the block's status ---
         command_block.approval_status = ApprovalStatus::Executed {
             output: output.clone(),
         };
-
+    
         info!(
             "Executed command: {} (exit code: {})",
             block_id, output.exit_code
         );
         Ok(output)
     }
+    
     /// Execute command internally
     fn execute_command_internal(&self, command_block: &CommandBlock) -> Result<CommandOutput> {
         let output = Command::new("sh")
