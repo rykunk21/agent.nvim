@@ -1,11 +1,11 @@
 use anyhow::Result;
 use log::info;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::Command;
 use std::time::Duration;
 use uuid::Uuid;
-use std::collections::HashMap;
 
 /// Command block for approval workflow
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub enum ApprovalStatus {
 }
 
 /// Command execution output
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,
@@ -66,9 +66,9 @@ impl CommandExecutor {
         description: String,
     ) -> Result<String> {
         let block_id = Uuid::new_v4().to_string();
-        
+
         let risk_level = self.assess_risk_level(&command);
-        
+
         let command_block = CommandBlock {
             id: block_id.clone(),
             command,
@@ -79,7 +79,8 @@ impl CommandExecutor {
         };
 
         info!("Created command block: {}", block_id);
-        self.pending_commands.insert(block_id.clone(), command_block);
+        self.pending_commands
+            .insert(block_id.clone(), command_block);
         Ok(block_id)
     }
 
@@ -116,31 +117,38 @@ impl CommandExecutor {
     }
 
     /// Execute an approved command
+
     pub fn execute_command(&mut self, block_id: &str) -> Result<CommandOutput> {
-        let command_block = self
-            .pending_commands
-            .get_mut(block_id)
-            .ok_or_else(|| anyhow::anyhow!("Command block not found: {}", block_id))?;
+        // --- Phase 1: mutable borrow just to check approval and extract command ---
+        let approved_command = {
+            let command_block = self
+                .pending_commands
+                .get_mut(block_id)
+                .ok_or_else(|| anyhow::anyhow!("Command block not found: {}", block_id))?;
 
-        if !matches!(command_block.approval_status, ApprovalStatus::Approved) {
-            return Err(anyhow::anyhow!("Command not approved for execution"));
-        }
+            if !matches!(command_block.approval_status, ApprovalStatus::Approved) {
+                return Err(anyhow::anyhow!("Command not approved for execution"));
+            }
 
-        // Validate command before execution
-        self.validate_command(&command_block.command)?;
+            command_block.command.clone()
+        }; // mutable borrow ends here
 
-        // Execute the command
-        let output = self.execute_command_internal(&command_block)?;
+        // --- Phase 2: immutable borrows safe now ---
+        self.validate_command(&approved_command)?;
+        let output = self.execute_command_internal(&approved_command)?;
 
-        // Update command block with execution result
+        // --- Phase 3: re-borrow mutably to update ---
+        let command_block = self.pending_commands.get_mut(block_id).unwrap();
         command_block.approval_status = ApprovalStatus::Executed {
             output: output.clone(),
         };
 
-        info!("Executed command: {} (exit code: {})", block_id, output.exit_code);
+        info!(
+            "Executed command: {} (exit code: {})",
+            block_id, output.exit_code
+        );
         Ok(output)
     }
-
     /// Execute command internally
     fn execute_command_internal(&self, command_block: &CommandBlock) -> Result<CommandOutput> {
         let output = Command::new("sh")
@@ -187,9 +195,15 @@ impl CommandExecutor {
         let high_risk_patterns = ["rm -rf", "sudo", "chmod 777", "dd if=", "mkfs", "> /dev/"];
         let medium_risk_patterns = ["rm ", "mv ", "cp ", "chmod", "chown", "kill", "pkill"];
 
-        if high_risk_patterns.iter().any(|pattern| command.contains(pattern)) {
+        if high_risk_patterns
+            .iter()
+            .any(|pattern| command.contains(pattern))
+        {
             RiskLevel::High
-        } else if medium_risk_patterns.iter().any(|pattern| command.contains(pattern)) {
+        } else if medium_risk_patterns
+            .iter()
+            .any(|pattern| command.contains(pattern))
+        {
             RiskLevel::Medium
         } else {
             RiskLevel::Low
@@ -221,8 +235,8 @@ impl CommandExecutor {
 
     /// Check if a command is safe to execute
     pub fn is_safe_command(&self, command: &str) -> bool {
-        self.validate_command(command).is_ok() && 
-        !matches!(self.assess_risk_level(command), RiskLevel::High)
+        self.validate_command(command).is_ok()
+            && !matches!(self.assess_risk_level(command), RiskLevel::High)
     }
 
     /// Set command execution timeout
@@ -237,9 +251,8 @@ impl CommandExecutor {
 
     /// Clean up executed command blocks
     pub fn cleanup_executed_commands(&mut self) {
-        self.pending_commands.retain(|_, block| {
-            !matches!(block.approval_status, ApprovalStatus::Executed { .. })
-        });
+        self.pending_commands
+            .retain(|_, block| !matches!(block.approval_status, ApprovalStatus::Executed { .. }));
     }
 
     /// List all pending commands

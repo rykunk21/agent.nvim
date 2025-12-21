@@ -1,11 +1,11 @@
+mod command;
+mod communication;
+mod config;
+mod file_ops;
 mod llm;
 mod mcp;
 mod spec;
-mod communication;
-mod config;
 mod utils;
-mod command;
-mod file_ops;
 
 use anyhow::Result;
 use log::info;
@@ -17,7 +17,6 @@ async fn main() -> Result<()> {
     env_logger::Builder::from_default_env()
         .filter_level(log::LevelFilter::Info)
         .init();
-
     info!("Starting MCP orchestration layer");
 
     // Get configuration from environment
