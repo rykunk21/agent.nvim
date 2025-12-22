@@ -119,35 +119,48 @@ impl CommandExecutor {
     /// Execute an approved command
 
     pub fn execute_command(&mut self, block_id: &str) -> Result<CommandOutput> {
-        // --- Phase 1 and 3 are combined: Borrow mutably once ---
-        let command_block = self
-            .pending_commands
-            .get_mut(block_id)
-            .ok_or_else(|| anyhow::anyhow!("Command block not found: {}", block_id))?;
-    
-        // Check if the command is approved
-        if !matches!(command_block.approval_status, ApprovalStatus::Approved) {
+        // ---- Phase 1: inspect + extract ----
+        let (command, approved) = {
+            let block = self
+                .pending_commands
+                .get(block_id)
+                .ok_or_else(|| anyhow::anyhow!("Unknown command"))?;
+
+            (
+                block.command.as_str(),
+                matches!(block.approval_status, ApprovalStatus::Approved),
+            )
+        };
+
+        if !approved {
             return Err(anyhow::anyhow!("Command not approved for execution"));
         }
-    
-        // --- Phase 2: Validate command ---
-        self.validate_command(&command_block.command)?;
-    
-        // Execute the command
-        let output = self.execute_command_internal(command_block)?;
-    
-        // --- Update the block's status ---
-        command_block.approval_status = ApprovalStatus::Executed {
-            output: output.clone(),
+
+        // ---- Phase 2: validation (no borrows held) ----
+        self.validate_command(command)?;
+
+        // ---- Phase 3: execution (immutable borrow) ----
+        let output = {
+            let block = self.pending_commands.get(block_id).unwrap();
+            self.execute_command_internal(block)?
         };
-    
+
+        // ---- Phase 4: commit state (mutable borrow) ----
+        {
+            let block = self.pending_commands.get_mut(block_id).unwrap();
+            block.approval_status = ApprovalStatus::Executed {
+                output: output.clone(),
+            };
+        }
+
         info!(
             "Executed command: {} (exit code: {})",
             block_id, output.exit_code
         );
+
         Ok(output)
     }
-    
+
     /// Execute command internally
     fn execute_command_internal(&self, command_block: &CommandBlock) -> Result<CommandOutput> {
         let output = Command::new("sh")
